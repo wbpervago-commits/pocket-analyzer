@@ -268,9 +268,13 @@
         result.higherTrend.direction === (result.direction === 'UP' ? 1 : -1) ? 'Старший ТФ: совпадает' : 'Старший ТФ: против';
       const absScore = Math.abs(result.score);
       const scoreBand = absScore < 6 ? 'Баллы: 4–5' : absScore < 8 ? 'Баллы: 6–7' : 'Баллы: 8+';
+      const sideLabel = result.direction === 'UP' ? 'ВВЕРХ' : 'ВНИЗ';
       addGroup(trendBand, result, win, tie);
       addGroup(htf, result, win, tie);
       addGroup(scoreBand, result, win, tie);
+      addGroup(sideLabel + ' · ' + trendBand, result, win, tie);
+      addGroup(sideLabel + ' · ' + htf, result, win, tie);
+      addGroup(sideLabel + ' · ' + scoreBand, result, win, tie);
     }
     const decided = wins + losses;
     const winRate = decided ? wins / decided * 100 : null;

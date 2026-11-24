@@ -457,14 +457,20 @@
       rate.textContent=bt.winRate==null?'—':bt.winRate.toFixed(1)+'%';signals.textContent=String(bt.signals);sample.textContent=bt.wins+' / '+bt.losses;
       document.getElementById('btEdge').textContent='Безубыточность: '+bt.breakEvenRate.toFixed(1)+'% · матожидание: '+(bt.expectedValue==null?'—':(bt.expectedValue>=0?'+':'')+(bt.expectedValue*100).toFixed(1)+'% на ставку');
       const diag=document.getElementById('btDiagnostics');
-      diag.innerHTML='<div class="sub" style="margin-bottom:6px">Диагностика фильтров · победы / поражения · доля верных</div>';
-      (bt.diagnostics||[]).forEach(g=>{
-        const row=document.createElement('div');
-        row.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #263650;font-size:11px';
-        const left=document.createElement('span');left.textContent=g.label+' · '+g.signals+' сигн.';
-        const right=document.createElement('span');right.style.whiteSpace='nowrap';right.textContent=(g.winRate==null?'—':g.winRate.toFixed(1)+'%')+' · '+g.wins+'/'+g.losses;
-        row.append(left,right);diag.appendChild(row);
-      });
+      diag.innerHTML='<div class="sub" style="margin-bottom:6px">Общие группы</div>';
+      const renderRows=(items)=>{
+        items.forEach(g=>{
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #263650;font-size:11px';
+          const left=document.createElement('span');left.textContent=g.label+' · '+g.signals+' сигн.';
+          const right=document.createElement('span');right.style.whiteSpace='nowrap';right.textContent=(g.winRate==null?'—':g.winRate.toFixed(1)+'%')+' · '+g.wins+'/'+g.losses;
+          row.append(left,right);diag.appendChild(row);
+        });
+      };
+      const groups=bt.diagnostics||[];
+      renderRows(groups.filter(g=>!g.label.includes(' · ')));
+      diag.insertAdjacentHTML('beforeend','<div class="sub" style="margin:10px 0 6px">Разделение по направлению</div>');
+      renderRows(groups.filter(g=>g.label.includes(' · ')));
       note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены из доли верных.':'Walk-forward по закрытым свечам. Диагностика показывает группы условий, а не доказывает причинность. Выплата и задержки исполнения не учтены.';
     }
     function updateCountdown(stamp){
