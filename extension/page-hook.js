@@ -186,7 +186,6 @@
           (payload.data || payload.candles || payload.history || []);
         const requestContext = inFlight?.item?.payload || null;
         inFlight = null;
-        pendingRequest = null;
         post("history-response-received", {
           event: name,
           rows: Array.isArray(rows) ? rows.length : 0,
