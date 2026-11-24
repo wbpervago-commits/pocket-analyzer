@@ -105,7 +105,7 @@
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
       candles.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;activeSignal=null;signalCount=0;signalLog.length=0;
       document.getElementById('signalCount').textContent='0';
-      renderSignal('NONE',null,'Ожидание данных выбранной пары.',[]);updateBacktest();
+      renderSignal('WAIT',null,'Ожидаем данные и окно формирования сигнала.',[]);updateBacktest();
       candleSpacing=DEFAULT_CANDLE_SPACING;
       chartViewStart=0;chartFollowLatest=true;
       document.getElementById("historyStatus").textContent="История: загрузка…";
@@ -418,29 +418,35 @@
 
     function renderSignal(direction,strength,reason,factors){
       const mark=document.getElementById('signalMark'),title=document.getElementById('signalDirection'),panel=document.getElementById('signalPanel'),reasonEl=document.getElementById('signalReason');
-      const hasSignal=direction==='UP'||direction==='DOWN';
-      mark.hidden=!hasSignal;title.hidden=!hasSignal;reasonEl.hidden=!hasSignal;
+      const hasSignal=direction==='UP'||direction==='DOWN',waiting=direction==='WAIT';
+      mark.hidden=!hasSignal;title.hidden=false;reasonEl.hidden=!hasSignal;
       mark.textContent=direction==='UP'?'↑':direction==='DOWN'?'↓':'';
       mark.style.color=direction==='UP'?'#20c997':'#ff647c';
-      title.textContent=direction==='UP'?'ВВЕРХ':'ВНИЗ';
-      title.style.color=direction==='UP'?'#20c997':'#ff647c';
+      title.textContent=hasSignal?(direction==='UP'?'ВВЕРХ':'ВНИЗ'):(waiting?'ОЖИДАЕМ':'НЕТ СИГНАЛА');
+      title.style.fontSize=hasSignal?'22px':'12px';
+      title.style.fontWeight=hasSignal?'700':'500';
+      title.style.letterSpacing=hasSignal?'0.02em':'0.04em';
+      title.style.color=hasSignal?(direction==='UP'?'#20c997':'#ff647c'):'#b8a66b';
       panel.style.borderColor=direction==='UP'?'#236c59':direction==='DOWN'?'#7c3445':'#354967';
       panel.style.background=direction==='UP'?'#10271f':direction==='DOWN'?'#2a1720':'#0d1829';
       document.getElementById('signalStrength').textContent=strength==null?'—':strength+'/100';
       reasonEl.textContent=reason||'';
       const list=document.getElementById('signalFactors');list.innerHTML='';
       if(hasSignal)(factors||[]).slice(0,6).forEach(f=>{const li=document.createElement('li');li.textContent=f.label;list.appendChild(li);});
-      else {const li=document.createElement('li');li.textContent='Ожидание сигнала';list.appendChild(li);}
+      else {const li=document.createElement('li');li.textContent=waiting?'Ожидание окна формирования сигнала':'Сигнал не сформирован';list.appendChild(li);}
     }
 
     function updateLiveSignal(stamp){
       const period=Number(tf.value),remaining=period-(stamp%period),lead=Number(document.getElementById('lead').value);
       if(activeSignal&&lastSignalBucket===lastBucket){renderSignal(activeSignal.direction,activeSignal.confidence,activeSignal.reason,activeSignal.factors);return;}
-      if(remaining>lead){renderSignal('NONE',null,'Сигнал будет рассчитан за '+lead+' секунд до закрытия свечи.',[]);return;}
+      if(remaining>lead){renderSignal('WAIT',null,'Ожидаем окно за '+lead+' секунд до закрытия свечи.',[]);return;}
       const result=PocketAnalysis.evaluate(candles,Number(tf.value));
-      if(!result.ready){renderSignal('NONE',null,result.reason,[]);return;}
+      if(!result.ready){
+        activeSignal={direction:'NONE',confidence:null,reason:result.reason,factors:[]};lastSignalBucket=lastBucket;
+        renderSignal('NONE',null,result.reason,[]);return;
+      }
       activeSignal=result;lastSignalBucket=lastBucket;renderSignal(result.direction,result.confidence,result.reason,result.factors);
-      if(result.direction!=='NONE'){signalCount++;document.getElementById('signalCount').textContent=String(signalCount);}
+      if(result.direction==='UP'||result.direction==='DOWN'){signalCount++;document.getElementById('signalCount').textContent=String(signalCount);}
     }
 
     function updateBacktest(){
