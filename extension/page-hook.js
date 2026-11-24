@@ -125,7 +125,8 @@
       post("history-request-sent", {
         attempt: item.attempts + 1,
         period: item.payload.period,
-        count: item.payload.offset
+        offsetSeconds: item.payload.offset,
+        expectedCandles: Math.ceil(item.payload.offset / item.payload.period)
       });
 
       window.setTimeout(() => {
@@ -216,10 +217,14 @@
       return;
     }
 
+    // Pocket Option's offset is a lookback window in SECONDS, not
+    // a candle count. The analyzer sends count = 86400 / period, so
+    // multiplying by period requests the full 24-hour window.
+    const lookbackSeconds = Math.ceil(count) * Math.floor(period);
     const payload = {
       asset: request.symbol,
       index: Math.floor(Date.now() / 10),
-      offset: Math.min(Math.max(Math.floor(count), 1), 2000),
+      offset: Math.min(Math.max(Math.floor(lookbackSeconds), Math.floor(period)), 86400),
       period: Math.floor(period),
       time: normalizeTimestamp(request.stamp, period)
     };
