@@ -117,9 +117,13 @@
   window.WebSocket = new Proxy(NativeWebSocket, {
     construct(target, args, newTarget) {
       const ws = Reflect.construct(target, args, newTarget);
-      sockets.add(ws);
-      latestSocket = ws;
-      ws.addEventListener("open", () => { latestSocket = ws; });
+      const socketUrl = String(args[0] || "");
+      const isMarketSocket = /(?:\\.po\\.market|pocketoption\\.com)/i.test(socketUrl);
+      if (isMarketSocket) {
+        sockets.add(ws);
+        latestSocket = ws;
+        ws.addEventListener("open", () => { latestSocket = ws; });
+      }
       ws.addEventListener("close", () => {
         sockets.delete(ws);
         if (latestSocket === ws) latestSocket = [...sockets].at(-1) || null;
