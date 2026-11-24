@@ -199,7 +199,7 @@
     };
   }
 
-  function backtest(candles, expirySeconds, timeframeSeconds) {
+  function backtest(candles, expirySeconds, timeframeSeconds, payoutRate = 0.8) {
     if (!Number.isFinite(expirySeconds) || !Number.isFinite(timeframeSeconds) || expirySeconds < timeframeSeconds || expirySeconds % timeframeSeconds !== 0) return { supported: false, reason: 'Для точного теста экспирация должна быть не короче таймфрейма и кратна ему.' };
     const step = expirySeconds / timeframeSeconds;
     let signals = 0, wins = 0, losses = 0, ties = 0;
@@ -207,14 +207,18 @@
     for (let i = 59; i + step < candles.length; i++) {
       const result = evaluate(candles.slice(0, i + 1));
       if (result.direction === 'NONE') continue;
-      const entry = candles[i].close, exit = candles[i + step].close;
+      const entry = candles[i + 1].open, exit = candles[i + step].close;
       signals++;
       byDirection[result.direction].signals++;
       if (Math.abs(exit - entry) < 1e-12) { ties++; continue; }
       const win = result.direction === 'UP' ? exit > entry : exit < entry;
       if (win) { wins++; byDirection[result.direction].wins++; } else losses++;
     }
-    return { supported: true, signals, wins, losses, ties, winRate: wins + losses ? wins / (wins + losses) * 100 : null, byDirection, expiryBars: step };
+    const decided = wins + losses;
+    const winRate = decided ? wins / decided * 100 : null;
+    const breakEvenRate = 100 / (1 + payoutRate);
+    const expectedValue = decided ? (wins * payoutRate - losses) / decided : null;
+    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, expiryBars: step };
   }
 
   root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
