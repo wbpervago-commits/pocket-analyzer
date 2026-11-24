@@ -23,6 +23,14 @@
     if (name === "loadHistoryPeriod" || name === "loadHistoryPeriodFast" ||
         name === "updateHistoryNew" || name === "updateHistoryNewFast") {
       if (payload && typeof payload === "object") {
+        const rows = Array.isArray(payload) ? payload :
+          (payload.data || payload.candles || payload.history || []);
+        post("bridge-status", {
+          status: "history-response-received",
+          event: name,
+          rows: Array.isArray(rows) ? rows.length : 0,
+          keys: Object.keys(payload).slice(0, 8)
+        });
         post("history", { history: payload });
       }
     }
