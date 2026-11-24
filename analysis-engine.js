@@ -30,7 +30,7 @@
       if (d > 0) gains += d; else losses -= d;
     }
     let avgGain = gains / period, avgLoss = losses / period;
-    const calc = () => avgLoss === 0 ? (avgGain === 0 ? 50 : 100) : 100 - 100 / (1 + avgGain / avgLoss);
+    const calc = () => {\n      if (avgLoss === 0) return avgGain === 0 ? 50 : 100;\n      if (avgGain === 0) return 0;\n      return 100 - 100 / (1 + avgGain / avgLoss);\n    };
     out[period] = calc();
     for (let i = period + 1; i < values.length; i++) {
       const d = values[i] - values[i - 1];
@@ -59,7 +59,7 @@
       const a = values.slice(i - period + 1, i + 1), m = mean(a);
       const sd = Math.sqrt(mean(a.map(x => (x - m) ** 2)));
       const upper = m + mult * sd, lower = m - mult * sd;
-      out[i] = { middle: m, upper, lower, percentB: upper === lower ? 0.5 : (values[i] - lower) / (upper - lower), width: m === 0 ? 0 : (upper - lower) / Math.abs(m) };
+      const percentB = upper === lower ? 0.5 : (values[i] - lower) / (upper - lower);\n      const position = percentB < 0 ? 'below-lower' : percentB < 0.2 ? 'near-lower' : percentB < 0.5 ? 'lower-half' : percentB < 0.8 ? 'upper-half' : percentB <= 1 ? 'near-upper' : 'above-upper';\n      out[i] = { middle: m, upper, lower, percentB, width: m === 0 ? 0 : (upper - lower) / Math.abs(m), position, aboveMiddle: values[i] >= m };
     }
     return out;
   }
