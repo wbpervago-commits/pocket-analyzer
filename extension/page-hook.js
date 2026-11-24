@@ -131,7 +131,11 @@
       window.setTimeout(() => {
         if (!inFlight || inFlight.id !== id) return;
 
-        if (item.attempts < 1 && isOpen(activeSocket)) {
+        if (pendingRequest) {
+          inFlight = null;
+          post("history-request-superseded");
+          flushPendingRequest();
+        } else if (item.attempts < 1 && isOpen(activeSocket)) {
           item.attempts += 1;
           inFlight = null;
           pendingRequest = item;
@@ -140,6 +144,7 @@
         } else {
           inFlight = null;
           post("history-timeout", { attempts: item.attempts + 1 });
+          flushPendingRequest();
         }
       }, 9000);
     } catch (_) {
@@ -150,7 +155,7 @@
   }
 
   function flushPendingRequest() {
-    if (!pendingRequest || !isOpen(activeSocket)) return;
+    if (inFlight || !pendingRequest || !isOpen(activeSocket)) return;
     const item = pendingRequest;
     pendingRequest = null;
     sendPayload(activeSocket, item);
@@ -196,6 +201,7 @@
           symbol: requestContext?.asset,
           period: requestContext?.period
         }, "*");
+        flushPendingRequest();
       }
     }
   }
@@ -248,7 +254,7 @@
         pendingBinary.delete(socket);
         if (activeSocket === socket) activeSocket = null;
         if (inFlight?.socket === socket) {
-          pendingRequest = inFlight.item;
+          if (!pendingRequest) pendingRequest = inFlight.item;
           inFlight = null;
           post("history-request-queued", { reason: "socket-closed-before-response" });
         }
