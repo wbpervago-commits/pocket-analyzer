@@ -240,22 +240,47 @@
     if (!Number.isFinite(expirySeconds) || !Number.isFinite(timeframeSeconds) || expirySeconds < timeframeSeconds || expirySeconds % timeframeSeconds !== 0) return { supported: false, reason: 'Для точного теста экспирация должна быть не короче таймфрейма и кратна ему.' };
     const step = expirySeconds / timeframeSeconds;
     let signals = 0, wins = 0, losses = 0, ties = 0;
-    const byDirection = { UP: { signals: 0, wins: 0 }, DOWN: { signals: 0, wins: 0 } };
+    const byDirection = { UP: { signals: 0, wins: 0, losses: 0, ties: 0 }, DOWN: { signals: 0, wins: 0, losses: 0, ties: 0 } };
+    const groups = {};
+    const addGroup = (key, result, win, tie) => {
+      const g = groups[key] || (groups[key] = { signals: 0, wins: 0, losses: 0, ties: 0 });
+      g.signals++;
+      if (tie) g.ties++;
+      else if (win) g.wins++;
+      else g.losses++;
+    };
     for (let i = 59; i + step < candles.length; i++) {
       const result = evaluate(candles.slice(0, i + 1), timeframeSeconds);
       if (result.direction === 'NONE') continue;
       const entry = candles[i + 1].open, exit = candles[i + step].close;
+      const tie = Math.abs(exit - entry) < 1e-12;
+      const win = !tie && (result.direction === 'UP' ? exit > entry : exit < entry);
       signals++;
-      byDirection[result.direction].signals++;
-      if (Math.abs(exit - entry) < 1e-12) { ties++; continue; }
-      const win = result.direction === 'UP' ? exit > entry : exit < entry;
-      if (win) { wins++; byDirection[result.direction].wins++; } else losses++;
+      const side = byDirection[result.direction];
+      side.signals++;
+      if (tie) { ties++; side.ties++; }
+      else if (win) { wins++; side.wins++; }
+      else { losses++; side.losses++; }
+
+      const adx = result.indicators?.adx;
+      const trendBand = adx == null ? 'ADX: нет данных' : adx < 20 ? 'ADX: ниже 20' : adx < 25 ? 'ADX: 20–25' : 'ADX: 25 и выше';
+      const htf = !result.higherTrend || result.higherTrend.direction === 0 ? 'Старший ТФ: нейтральный/нет данных' :
+        result.higherTrend.direction === (result.direction === 'UP' ? 1 : -1) ? 'Старший ТФ: совпадает' : 'Старший ТФ: против';
+      const absScore = Math.abs(result.score);
+      const scoreBand = absScore < 6 ? 'Баллы: 4–5' : absScore < 8 ? 'Баллы: 6–7' : 'Баллы: 8+';
+      addGroup(trendBand, result, win, tie);
+      addGroup(htf, result, win, tie);
+      addGroup(scoreBand, result, win, tie);
     }
     const decided = wins + losses;
     const winRate = decided ? wins / decided * 100 : null;
     const breakEvenRate = 100 / (1 + payoutRate);
     const expectedValue = decided ? (wins * payoutRate - losses) / decided : null;
-    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, expiryBars: step };
+    const diagnostics = Object.entries(groups).map(([label, g]) => ({
+      label, ...g, winRate: g.wins + g.losses ? g.wins / (g.wins + g.losses) * 100 : null,
+      expectedValue: g.wins + g.losses ? (g.wins * payoutRate - g.losses) / (g.wins + g.losses) : null
+    }));
+    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, expiryBars: step };
   }
 
   root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
