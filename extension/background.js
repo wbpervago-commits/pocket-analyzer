@@ -53,7 +53,9 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (message?.type === "POCKET_ANALYZER_HISTORY" && message.history) {
     sendToAnalyzers({
       type: "POCKET_ANALYZER_HISTORY",
-      history: message.history
+      history: message.history,
+      symbol: message.symbol,
+      period: message.period
     });
   }
 });
