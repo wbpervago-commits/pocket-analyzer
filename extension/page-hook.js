@@ -372,7 +372,7 @@
       symbol: request.symbol,
       period: Math.floor(period),
       anchorTime,
-      targetStart: anchorTime - 86400,
+      targetStart: anchorTime - Math.ceil(targetCandles) * Math.floor(period),
       cursorTime: anchorTime,
       pageOffset,
       maxPages: Math.ceil(targetCandles / pageCandles) + 2,
