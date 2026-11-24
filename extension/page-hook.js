@@ -19,6 +19,7 @@
       if (item.length >= 3 && typeof item[0] === "string" &&
           typeof item[1] === "number" && typeof item[2] === "number") {
         latestTimestamp = item[1];
+        window.postMessage({ source: marker, kind: "bridge-status", status: "quote-decoded" }, "*");
         window.postMessage({
           source: marker, kind: "quote",
           quote: [item[0], item[1], item[2]]
@@ -55,7 +56,10 @@
         if (!data.startsWith("42")) return;
         const packet = JSON.parse(data.slice(2));
         if (!Array.isArray(packet)) return;
-        if (packet[0] === "updateStream") publishTicks(packet[1]);
+        if (packet[0] === "updateStream") {
+          window.postMessage({ source: marker, kind: "bridge-status", status: "stream-message" }, "*");
+          publishTicks(packet[1]);
+        }
         else publishHistory(packet[0], packet[1]);
         return;
       }
@@ -122,7 +126,11 @@
       if (isMarketSocket) {
         sockets.add(ws);
         latestSocket = ws;
-        ws.addEventListener("open", () => { latestSocket = ws; });
+        window.postMessage({ source: marker, kind: "bridge-status", status: "socket-created" }, "*");
+        ws.addEventListener("open", () => {
+          latestSocket = ws;
+          window.postMessage({ source: marker, kind: "bridge-status", status: "socket-open" }, "*");
+        });
       }
       ws.addEventListener("close", () => {
         sockets.delete(ws);
@@ -133,5 +141,5 @@
     }
   });
 
-  window.postMessage({ source: marker, kind: "bridge-ready" }, "*");
+  window.postMessage({ source: marker, kind: "bridge-status", status: "hook-installed" }, "*");
 })();
