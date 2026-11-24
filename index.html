@@ -139,10 +139,10 @@
       if(historyRequestedKey===key)return;
       historyRequestedKey=key;
       const period=Number(tf.value);
-      const count=Math.ceil(86400/period);
+      const count=Math.ceil((90*86400)/period);
       document.getElementById("historyStatus").textContent="История: запрос…";
       chartMessage.style.display="grid";
-      chartMessage.innerHTML="<b>Загрузка истории за 24 часа</b><br><span class=\"sub\">Получаем исторические свечи Pocket Option</span>";
+      chartMessage.innerHTML="<b>Загрузка истории за 90 дней</b><br><span class=\"sub\">Получаем исторические свечи Pocket Option</span>";
       window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"history-request",symbol:pair.value,period,count,stamp},"*");
     }
 
