@@ -54,8 +54,8 @@
         <div class="chart-nav"><input type="range" id="chartHistorySlider" min="0" max="0" value="0" step="1" disabled aria-label="Перемещение по истории свечей"><span class="chart-range-label" id="chartRangeLabel">История не загружена</span></div>
         <div class="indicators">
           <div class="indicator"><span>EMA 9 / EMA 21</span><b id="emaValue">Накопление данных</b></div>
-          <div class="indicator"><span>RSI (14)</span><b id="rsiValue">—</b></div>
-          <div class="indicator"><span>MACD (12, 26, 9)</span><b id="macdValue">—</b></div>
+          <div class="indicator"><span>RSI Wilder (14)</span><b id="rsiValue">—</b></div>
+          <div class="indicator"><span>MACD line / signal / histogram</span><b id="macdValue">—</b></div>
           <div class="indicator"><span>Bollinger (20)</span><b id="bbValue">—</b></div>
           <div class="indicator"><span>ADX (14) · сила тренда</span><b id="adxValue">—</b></div>
           <div class="indicator"><span>ATR (14) · волатильность</span><b id="atrValue">—</b></div>
@@ -408,8 +408,8 @@
       const v=result.indicators;
       document.getElementById('emaValue').textContent=v.ema9>v.ema21&&v.ema21>v.ema50?'Бычий тренд':v.ema9<v.ema21&&v.ema21<v.ema50?'Медвежий тренд':v.ema9>v.ema21?'Умеренно вверх':v.ema9<v.ema21?'Умеренно вниз':'Нейтрально';
       document.getElementById('rsiValue').textContent=v.rsi==null?'—':v.rsi.toFixed(1);
-      document.getElementById('macdValue').textContent=v.macd==null?'—':v.macd.toFixed(d)+' · гист. '+v.macdHist.toFixed(d);
-      document.getElementById('bbValue').textContent=v.bb==null?'—':'%B '+v.bb.percentB.toFixed(2)+' · ширина '+(v.bb.width*100).toFixed(3)+'%';
+      document.getElementById('macdValue').textContent=v.macd==null||v.macdSignal==null||v.macdHist==null?'Нужно больше истории':v.macd.toFixed(d)+' / '+v.macdSignal.toFixed(d)+' / '+v.macdHist.toFixed(d);
+      document.getElementById('bbValue').textContent=v.bb==null?'—':({ 'below-lower':'ниже нижней', 'near-lower':'у нижней', 'lower-half':'нижняя половина', 'upper-half':'верхняя половина', 'near-upper':'у верхней', 'above-upper':'выше верхней' }[v.bb.position]+' · %B '+v.bb.percentB.toFixed(2)+' · ширина '+(v.bb.width*100).toFixed(3)+'%');
       document.getElementById('adxValue').textContent=v.adx==null?'—':v.adx.toFixed(1)+(v.adx>=25?' · сильный':v.adx<20?' · слабый':' · умеренный');
       document.getElementById('atrValue').textContent=v.atr==null?'—':v.atr.toFixed(d);
       document.getElementById('stochValue').textContent=v.stochasticK==null?'—':v.stochasticK.toFixed(1)+' / '+v.stochasticD.toFixed(1);
