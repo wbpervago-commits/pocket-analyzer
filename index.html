@@ -251,6 +251,7 @@
       if(event.source!==window||event.data?.source!=='POCKET_ANALYZER_QUOTE_BRIDGE')return;
       if(event.data.kind==='bridge-status'){
         const labels={
+          'analyzer-extension-ready':'Расширение подключено · ожидание Pocket Option',
           'hook-installed':'Расширение: скрипт установлен',
           'socket-created':'Расширение: найден WebSocket',
           'socket-open':'Pocket Option: WebSocket подключён',
@@ -270,5 +271,6 @@
         }
       }
     });
+    window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"extension-ping"},"*");
   </script></body>
 </html>
