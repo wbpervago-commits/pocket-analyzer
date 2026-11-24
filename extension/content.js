@@ -35,8 +35,13 @@
           "send-failed": "История: ошибка отправки запроса",
           "history-hook-installed": "История: перехватчик активен",
           "history-request-queued": "История: запрос сохранён · ждём поток Pocket Option",
-          "history-request-sent": "История: запрос отправлен · ждём ответ",
+          "history-session-started": "История: загружаем 24 часа · готовим пакеты",
+          "history-request-sent": "История: пакет отправлен · ждём ответ",
           "history-request-retry": "История: повторный запрос · ждём ответ",
+          "history-page-received": "История: пакет " + (d.page ?? "?") + "/" + (d.expectedPages ?? "?") + " · получено " + (d.totalRows ?? d.rows ?? "?") + " свечей",
+          "history-page-next": "История: загружаем следующий пакет · уже " + (d.rows ?? "?") + " свечей",
+          "history-complete": "История: 24 часа собраны · " + (d.rows ?? "?") + " свечей",
+          "history-incomplete": "История: сервер вернул только часть данных · " + (d.rows ?? "?") + " свечей",
           "history-request-superseded": "История: старый запрос отменён · отправляется новый",
           "history-timeout": "История: Pocket Option не ответил на запрос",
           "history-invalid-request": "История: некорректные параметры запроса",
@@ -95,7 +100,19 @@
       chrome.runtime.sendMessage({
         type: "POCKET_ANALYZER_HISTORY_STATUS",
         status,
-        details: { event: event.data.event, rows: event.data.rows, keys: event.data.keys }
+        details: {
+          event: event.data.event,
+          rows: event.data.rows,
+          keys: event.data.keys,
+          page: event.data.page,
+          expectedPages: event.data.expectedPages,
+          totalRows: event.data.totalRows,
+          spanSeconds: event.data.spanSeconds,
+          reason: event.data.reason,
+          targetCandles: event.data.targetCandles,
+          pageCandles: event.data.pageCandles,
+          maxPages: event.data.maxPages
+        }
       }).catch(() => {});
     }
   });
