@@ -6,6 +6,18 @@ const POCKET_URLS = [
 ];
 
 chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "POCKET_ANALYZER_BRIDGE_STATUS" && typeof message.status === "string") {
+    chrome.tabs.query({}, tabs => {
+      for (const tab of tabs) {
+        if (tab.id == null || !tab.url?.startsWith(ANALYZER_URL)) continue;
+        chrome.tabs.sendMessage(tab.id, {
+          type: "POCKET_ANALYZER_BRIDGE_STATUS", status: message.status
+        }).catch(() => {});
+      }
+    });
+    return;
+  }
+
   if (message?.type === "POCKET_ANALYZER_QUOTE" && Array.isArray(message.quote)) {
     const [symbol, timestamp, price] = message.quote;
     if (typeof symbol !== "string" || typeof timestamp !== "number" ||
