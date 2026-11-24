@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1220">
+  <title>Pocket Analyzer</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--panel2:#172338;--line:#263650;--text:#eef4ff;--muted:#91a2bc;--blue:#4c8dff;--green:#20c997;--red:#ff647c;--yellow:#f4c15d}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#1c3152 0,transparent 55%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+    .wrap{max-width:1180px;margin:auto;padding:28px 22px 48px}.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:26px}.brand{display:flex;align-items:center;gap:13px}.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#438bff,#2455c7);display:grid;place-items:center;font-weight:800;font-size:20px;box-shadow:0 8px 24px #1c5bc455}.brand h1{font-size:20px;margin:0;letter-spacing:.2px}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}.status{font-size:12px;color:var(--yellow);border:1px solid #715d2e;background:#3a301b;padding:7px 11px;border-radius:20px}
+    .controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.field,.card{background:linear-gradient(180deg,#152238,#111b2d);border:1px solid var(--line);border-radius:16px}.field{padding:13px 15px}.field label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.field select{width:100%;background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:9px;padding:10px;font:inherit;outline:none}.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.card{padding:19px}.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.card h2{font-size:15px;margin:0;font-weight:650}.sub{color:var(--muted);font-size:12px}.quote{display:flex;align-items:flex-end;gap:12px;margin:20px 0 15px}.price{font-size:38px;line-height:1;font-weight:750;letter-spacing:-1px}.change{font-size:13px;color:var(--muted)}.chart{height:220px;border:1px solid #263650;border-radius:12px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 54px,#26365066 55px),repeating-linear-gradient(to right,transparent 0,transparent 79px,#26365044 80px);display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px}.signal{min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#0d1829;border:1px dashed #354967;border-radius:13px;padding:20px}.signal-mark{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#28364c;color:var(--yellow);font-size:25px;margin-bottom:12px}.signal strong{font-size:23px}.signal p{margin:7px 0 0;color:var(--muted);font-size:13px;max-width:320px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.stat{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.stat span{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:18px;margin-top:4px}.indicators{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.indicator{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.indicator span{display:block;color:var(--muted);font-size:11px}.indicator b{font-size:14px}.footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}.pill{padding:4px 8px;border-radius:20px;background:#26364d;color:#b9c9e1;font-size:11px}
+    @media(max-width:760px){.controls{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.wrap{padding:20px 14px}.top{align-items:flex-start}.price{font-size:32px}}@media(max-width:420px){.controls{grid-template-columns:1fr 1fr}.field{padding:10px}.field select{font-size:13px}.stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <div class="brand"><div class="logo">P</div><div><h1>Pocket Analyzer</h1><p>Аналитика рынка · только сигналы, без автоторговли</p></div></div>
+      <div class="status" id="connection">● Источник данных не подключён</div>
+    </header>
+    <section class="controls" aria-label="Настройки анализа">
+      <div class="field"><label for="pair">Валютная пара</label><select id="pair"><option>EURUSD_otc</option><option>GBPUSD_otc</option><option>USDJPY_otc</option><option>AUDCAD_otc</option><option>EURGBP_otc</option></select></div>
+      <div class="field"><label for="timeframe">Таймфрейм свечи</label><select id="timeframe"><option value="60">M1</option><option value="120">M2</option><option value="300">M5</option><option value="900">M15</option></select></div>
+      <div class="field"><label for="expiry">Экспирация</label><select id="expiry"><option value="30">30 секунд</option><option value="60" selected>1 минута</option><option value="120">2 минуты</option><option value="300">5 минут</option></select></div>
+      <div class="field"><label for="lead">Момент сигнала до закрытия</label><select id="lead"><option value="5">За 5 секунд</option><option value="7" selected>За 7 секунд</option><option value="10">За 10 секунд</option></select></div>
+    </section>
+    <section class="grid">
+      <article class="card">
+        <div class="card-head"><h2>Рыночная котировка</h2><span class="pill" id="selectedPair">EURUSD_otc · M1</span></div>
+        <div class="quote"><div class="price">—</div><div class="change">Ожидание потока котировок</div></div>
+        <div class="chart"><div><b>График появится после подключения данных</b><br><span class="sub">Здесь будут свечи и уровни цены</span></div></div>
+        <div class="indicators">
+          <div class="indicator"><span>EMA / тренд</span><b>Ожидание данных</b></div>
+          <div class="indicator"><span>RSI</span><b>—</b></div>
+          <div class="indicator"><span>MACD</span><b>—</b></div>
+          <div class="indicator"><span>Bollinger Bands</span><b>—</b></div>
+        </div>
+      </article>
+      <aside class="card">
+        <div class="card-head"><h2>Решение анализатора</h2><span class="pill">Decision Maker</span></div>
+        <div class="signal"><div class="signal-mark">…</div><strong>НЕТ СИГНАЛА</strong><p>Сигналы будут рассчитываться после получения и проверки рыночных данных. Сейчас прогноз не формируется.</p></div>
+        <div class="stats">
+          <div class="stat"><span>Уверенность</span><b>—</b></div>
+          <div class="stat"><span>До закрытия</span><b id="countdown">—</b></div>
+          <div class="stat"><span>Сигналов сегодня</span><b>0</b></div>
+        </div>
+        <div class="card-head" style="margin-top:20px"><h2>Последние сигналы</h2><span class="sub">История</span></div>
+        <p class="sub">Пока нет сигналов. История начнёт заполняться после запуска анализа.</p>
+      </aside>
+    </section>
+    <div class="footer">Pocket Analyzer · Инструмент технического анализа. Не является гарантией результата и не совершает сделки.</div>
+  </main>
+  <script>
+    const pair=document.getElementById('pair'),tf=document.getElementById('timeframe');
+    function updateSelection(){document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;}
+    pair.addEventListener('change',updateSelection);tf.addEventListener('change',updateSelection);
+  </script>
+</body>
+</html>
