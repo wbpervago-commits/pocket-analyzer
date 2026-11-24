@@ -172,7 +172,11 @@
       else if (b.percentB < 0.45 && b.percentB > 0.1) add(-1, 'Цена в нижней части Bollinger');
     }
 
-    if (st.k[i] != null && st.d[i] != null) {\n      if (st.k[i] > st.d[i] && st.k[i] >= 50 && st.k[i] <= 85) add(1, 'Stochastic подтверждает восходящий импульс');\n      else if (st.k[i] < st.d[i] && st.k[i] <= 50 && st.k[i] >= 15) add(-1, 'Stochastic подтверждает нисходящий импульс');\n    }\n    if (adx[i] != null && adx[i] >= 20) add(score > 0 ? 1 : score < 0 ? -1 : 0, 'ADX подтверждает наличие тренда');
+    if (st.k[i] != null && st.d[i] != null) {
+      if (st.k[i] > st.d[i] && st.k[i] >= 50 && st.k[i] <= 85) add(1, 'Stochastic подтверждает восходящий импульс');
+      else if (st.k[i] < st.d[i] && st.k[i] <= 50 && st.k[i] >= 15) add(-1, 'Stochastic подтверждает нисходящий импульс');
+    }
+    if (adx[i] != null && adx[i] >= 20) add(score > 0 ? 1 : score < 0 ? -1 : 0, 'ADX подтверждает наличие тренда');
     if (pattern.bullEngulf || pattern.bullPin) add(1, pattern.bullEngulf ? 'Бычье поглощение' : 'Бычий пин-бар');
     if (pattern.bearEngulf || pattern.bearPin) add(-1, pattern.bearEngulf ? 'Медвежье поглощение' : 'Медвежий пин-бар');
 
