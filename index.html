@@ -57,7 +57,7 @@
     const priceEl=document.getElementById('price');
     const quoteState=document.getElementById('quoteState');
     const chartMessage=document.getElementById('chartMessage');
-    let socket, lastQuoteAt=0, socketReady=false;
+    let lastQuoteAt=0;
     function updateSelection(){
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
       if(lastQuoteAt) quoteState.textContent='Последняя котировка: '+new Date(lastQuoteAt).toLocaleTimeString();
@@ -81,35 +81,13 @@
       chartMessage.innerHTML='<b>Котировки поступают</b><br><span class="sub">Следующий этап — построение свечей</span>';
       setStatus('Поток котировок активен',true);
     }
-    async function handleBinary(data){
-      try{
-        const buffer=data instanceof Blob?await data.arrayBuffer():data;
-        const text=new TextDecoder().decode(buffer);
-        decodeQuote(JSON.parse(text));
-      }catch(e){ /* неизвестные бинарные сообщения пропускаем */ }
-    }
-    function connect(){
-      try{
-        socket=new WebSocket('wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket');
-        socket.binaryType='arraybuffer';
-        socket.onopen=()=>setStatus('WebSocket открыт, ожидание протокола');
-        socket.onmessage=async(event)=>{
-          if(typeof event.data!=='string'){await handleBinary(event.data);return;}
-          const msg=event.data;
-          if(msg.startsWith('0')){socket.send('40');return;}
-          if(msg==='2'){socket.send('3');return;}
-          if(msg.startsWith('40')){socketReady=true;setStatus('Соединение Socket.IO установлено, ждём котировки');return;}
-          if(msg.startsWith('451-')){return;}
-          if(msg.startsWith('42')){
-            try{const packet=JSON.parse(msg.slice(2));if(packet[0]==='updateStream') decodeQuote(packet[1]);}catch(e){}
-          }
-        };
-        socket.onerror=()=>setStatus('Сервер не разрешил подключение из этой вкладки');
-        socket.onclose=(event)=>{socketReady=false;const reason=event.reason?(' · '+event.reason):'';setStatus('Соединение закрыто · код '+event.code+reason);quoteState.textContent='Сервер закрыл соединение. Код: '+event.code+(event.reason?' · '+event.reason:'');};
-      }catch(e){setStatus('Не удалось открыть WebSocket');}
-    }
-    connect();
-    window.addEventListener('beforeunload',()=>{if(socket)socket.close();});
+    setStatus('Ожидание расширения Chrome');
+    quoteState.textContent='Откройте Pocket Option в соседней вкладке. Расширение передаст котировки сюда.';
+    window.addEventListener('message',(event)=>{
+      if(event.source!==window || event.data?.source!=='POCKET_ANALYZER_QUOTE_BRIDGE') return;
+      if(event.data.kind==='quote') decodeQuote(event.data.quote);
+    });
+
   </script>
 </body>
 </html>
