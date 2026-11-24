@@ -11,6 +11,9 @@
       if (message?.type === "POCKET_ANALYZER_HISTORY" && message.history) {
         window.postMessage({ source: MARKER, kind: "history", history: message.history }, "*");
       }
+      if (message?.type === "POCKET_ANALYZER_BRIDGE_STATUS") {
+        window.postMessage({ source: MARKER, kind: "bridge-status", status: message.status }, "*");
+      }
       if (message?.type === "POCKET_ANALYZER_HISTORY_STATUS") {
         window.postMessage({ source: MARKER, kind: "history-status", status: message.status }, "*");
       }
@@ -38,6 +41,11 @@
 
   window.addEventListener("message", event => {
     if (event.source !== window || event.data?.source !== MARKER) return;
+    if (event.data.kind === "bridge-status") {
+      chrome.runtime.sendMessage({
+        type: "POCKET_ANALYZER_BRIDGE_STATUS", status: event.data.status
+      }).catch(() => {});
+    }
     if (event.data.kind === "quote" && Array.isArray(event.data.quote)) {
       chrome.runtime.sendMessage({
         type: "POCKET_ANALYZER_QUOTE", quote: event.data.quote
