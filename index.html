@@ -59,6 +59,7 @@
           <div class="indicator"><span>Bollinger (20)</span><b id="bbValue">—</b></div>
           <div class="indicator"><span>ADX (14) · сила тренда</span><b id="adxValue">—</b></div>
           <div class="indicator"><span>ATR (14) · волатильность</span><b id="atrValue">—</b></div>
+          <div class="indicator"><span>Stochastic (14, 3)</span><b id="stochValue">—</b></div>
         </div>
       </article>
       <aside class="card">
@@ -400,7 +401,7 @@
     function updateIndicators(){
       if(!window.PocketAnalysis||candles.length<1)return;
       const result=PocketAnalysis.evaluate(candles),d=pair.value.includes('JPY')?3:5;
-      if(!result.ready){['emaValue','rsiValue','macdValue','bbValue','adxValue','atrValue'].forEach(id=>document.getElementById(id).textContent='Нужно 60 свечей');return;}
+      if(!result.ready){['emaValue','rsiValue','macdValue','bbValue','adxValue','atrValue','stochValue'].forEach(id=>document.getElementById(id).textContent='Нужно 60 свечей');return;}
       const v=result.indicators;
       document.getElementById('emaValue').textContent=v.ema9>v.ema21&&v.ema21>v.ema50?'Бычий тренд':v.ema9<v.ema21&&v.ema21<v.ema50?'Медвежий тренд':v.ema9>v.ema21?'Умеренно вверх':v.ema9<v.ema21?'Умеренно вниз':'Нейтрально';
       document.getElementById('rsiValue').textContent=v.rsi==null?'—':v.rsi.toFixed(1);
@@ -408,6 +409,7 @@
       document.getElementById('bbValue').textContent=v.bb==null?'—':'%B '+v.bb.percentB.toFixed(2)+' · ширина '+(v.bb.width*100).toFixed(3)+'%';
       document.getElementById('adxValue').textContent=v.adx==null?'—':v.adx.toFixed(1)+(v.adx>=25?' · сильный':v.adx<20?' · слабый':' · умеренный');
       document.getElementById('atrValue').textContent=v.atr==null?'—':v.atr.toFixed(d);
+      document.getElementById('stochValue').textContent=v.stochasticK==null?'—':v.stochasticK.toFixed(1)+' / '+v.stochasticD.toFixed(1);
     }
 
     function renderSignal(direction,strength,reason,factors){
