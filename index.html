@@ -282,6 +282,7 @@
 
       const startIndex=chartViewStart;
       const visible=candles.slice(startIndex,Math.min(candles.length,startIndex+visibleCount));
+      const displayOffset=chartFollowLatest?Math.max(0,visibleCount-visible.length):0;
       if(!visible.length){
         updateChartNavigation([]);
         return;
@@ -305,7 +306,7 @@
 
       const candleW=Math.max(2,Math.min(13,xStep*.72));
       visible.forEach((c,i)=>{
-        const x=left+i*xStep+xStep/2;
+        const x=left+(displayOffset+i)*xStep+xStep/2;
         const up=c.close>=c.open,color=up?'#20d6a0':'#ff647c';
         ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.5;
         ctx.beginPath();ctx.moveTo(x,y(c.high));ctx.lineTo(x,y(c.low));ctx.stroke();
@@ -318,7 +319,7 @@
       const labels=[0,Math.floor((visible.length-1)/2),visible.length-1];
       labels.forEach(i=>{
         const d=new Date(visible[i].time*1000);
-        ctx.fillText(d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),left+i*xStep+xStep/2,h-8);
+        ctx.fillText(d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),left+(displayOffset+i)*xStep+xStep/2,h-8);
       });
 
       const latest=visible[visible.length-1],yy=y(latest.close);
