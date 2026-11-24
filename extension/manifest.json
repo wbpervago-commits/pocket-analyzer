@@ -1,51 +1,31 @@
 {
   "manifest_version": 3,
-  "name": "Pocket Analyzer Quote Bridge",
-  "version": "1.0.0",
-  "description": "Передаёт только рыночные котировки из открытой страницы Pocket Option в Pocket Analyzer.",
+  "name": "Pocket Analyzer History Experiment",
+  "version": "0.1.0",
+  "description": "Экспериментальная загрузка исторических свечей Pocket Option без изменения рабочего моста котировок.",
   "minimum_chrome_version": "111",
-  "permissions": [
-    "tabs"
-  ],
+  "permissions": ["tabs"],
   "host_permissions": [
     "https://pocketoption.com/*",
     "https://*.pocketoption.com/*",
     "https://*.po.market/*",
     "https://wbpervago-commits.github.io/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
-      "matches": [
-        "https://pocketoption.com/*",
-        "https://*.pocketoption.com/*",
-        "https://*.po.market/*"
-      ],
-      "js": [
-        "content.js"
-      ],
+      "matches": ["https://pocketoption.com/*", "https://*.pocketoption.com/*", "https://*.po.market/*"],
+      "js": ["content.js"],
       "run_at": "document_start"
     },
     {
-      "matches": [
-        "https://wbpervago-commits.github.io/*"
-      ],
-      "js": [
-        "content.js"
-      ],
+      "matches": ["https://wbpervago-commits.github.io/*"],
+      "js": ["content.js"],
       "run_at": "document_start"
     },
     {
-      "matches": [
-        "https://pocketoption.com/*",
-        "https://*.pocketoption.com/*",
-        "https://*.po.market/*"
-      ],
-      "js": [
-        "page-hook.js"
-      ],
+      "matches": ["https://pocketoption.com/*", "https://*.pocketoption.com/*", "https://*.po.market/*"],
+      "js": ["page-hook.js"],
       "run_at": "document_start",
       "world": "MAIN"
     }
