@@ -236,12 +236,49 @@
     };
   }
 
+  function streakStats(trades) {
+    let current = 0, max = 0, streaks = [];
+    const after = { 1: { opportunities: 0, losses: 0, wins: 0, ties: 0 }, 2: { opportunities: 0, losses: 0, wins: 0, ties: 0 }, 3: { opportunities: 0, losses: 0, wins: 0, ties: 0 } };
+    for (const trade of trades) {
+      if (current >= 1 && current <= 3) {
+        const row = after[current];
+        row.opportunities++;
+        if (trade.tie) row.ties++;
+        else if (trade.win) row.wins++;
+        else row.losses++;
+      }
+      if (trade.tie) {
+        if (current) streaks.push(current);
+        current = 0;
+      } else if (trade.win) {
+        if (current) streaks.push(current);
+        current = 0;
+      } else {
+        current++;
+        if (current > max) max = current;
+      }
+    }
+    if (current) streaks.push(current);
+    return {
+      trades: trades.length,
+      maxLossStreak: max,
+      currentLossStreak: current,
+      streaks2Plus: streaks.filter(x => x >= 2).length,
+      streaks3Plus: streaks.filter(x => x >= 3).length,
+      streaks4Plus: streaks.filter(x => x >= 4).length,
+      streaks5Plus: streaks.filter(x => x >= 5).length,
+      afterLossRun: after
+    };
+  }
+
   function backtest(candles, expirySeconds, timeframeSeconds, payoutRate = 0.8) {
     if (!Number.isFinite(expirySeconds) || !Number.isFinite(timeframeSeconds) || expirySeconds < timeframeSeconds || expirySeconds % timeframeSeconds !== 0) return { supported: false, reason: 'Для точного теста экспирация должна быть не короче таймфрейма и кратна ему.' };
     const step = expirySeconds / timeframeSeconds;
     let signals = 0, wins = 0, losses = 0, ties = 0;
     const byDirection = { UP: { signals: 0, wins: 0, losses: 0, ties: 0 }, DOWN: { signals: 0, wins: 0, losses: 0, ties: 0 } };
     const groups = {};
+    const outcomes = [], nonOverlappingOutcomes = [];
+    let nextNonOverlappingIndex = 59;
     const addGroup = (key, result, win, tie) => {
       const g = groups[key] || (groups[key] = { signals: 0, wins: 0, losses: 0, ties: 0 });
       g.signals++;
@@ -263,6 +300,12 @@
       else { losses++; side.losses++; }
 
       const adx = result.indicators?.adx;
+      const tradeOutcome = { direction: result.direction, adx, win, tie, entryIndex: i + 1 };
+      outcomes.push(tradeOutcome);
+      if (i >= nextNonOverlappingIndex) {
+        nonOverlappingOutcomes.push(tradeOutcome);
+        nextNonOverlappingIndex = i + step;
+      }
       const trendBand = adx == null ? 'ADX: нет данных' : adx < 20 ? 'ADX: ниже 20' : adx < 25 ? 'ADX: 20–25' : 'ADX: 25 и выше';
       const htf = !result.higherTrend || result.higherTrend.direction === 0 ? 'Старший ТФ: нейтральный/нет данных' :
         result.higherTrend.direction === (result.direction === 'UP' ? 1 : -1) ? 'Старший ТФ: совпадает' : 'Старший ТФ: против';
@@ -284,7 +327,21 @@
       label, ...g, winRate: g.wins + g.losses ? g.wins / (g.wins + g.losses) * 100 : null,
       expectedValue: g.wins + g.losses ? (g.wins * payoutRate - g.losses) / (g.wins + g.losses) : null
     }));
-    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, expiryBars: step };
+    const risk = {
+      overall: streakStats(outcomes),
+      nonOverlapping: streakStats(nonOverlappingOutcomes),
+      byDirection: {
+        UP: streakStats(outcomes.filter(x => x.direction === 'UP')),
+        DOWN: streakStats(outcomes.filter(x => x.direction === 'DOWN'))
+      },
+      downAdx20to25: streakStats(outcomes.filter(x => x.direction === 'DOWN' && x.adx != null && x.adx >= 20 && x.adx < 25)),
+      windows: {
+        last100: streakStats(outcomes.slice(-100)),
+        last300: streakStats(outcomes.slice(-300)),
+        last500: streakStats(outcomes.slice(-500))
+      }
+    };
+    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, risk, expiryBars: step };
   }
 
   root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
