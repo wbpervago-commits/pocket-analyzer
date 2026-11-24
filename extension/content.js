@@ -20,12 +20,16 @@
     });
 
     window.addEventListener("message", event => {
-      if (event.source !== window || event.data?.source !== MARKER ||
-          event.data.kind !== "history-request") return;
-      const { symbol, period, count } = event.data;
-      chrome.runtime.sendMessage({
-        type: "POCKET_ANALYZER_HISTORY_REQUEST", symbol, period, count
-      }).catch(() => {});
+      if (event.source !== window || event.data?.source !== MARKER) return;
+      if (event.data.kind === "extension-ping") {
+        window.postMessage({ source: MARKER, kind: "bridge-status", status: "analyzer-extension-ready" }, "*");
+      }
+      if (event.data.kind === "history-request") {
+        const { symbol, period, count } = event.data;
+        chrome.runtime.sendMessage({
+          type: "POCKET_ANALYZER_HISTORY_REQUEST", symbol, period, count
+        }).catch(() => {});
+      }
     });
     return;
   }
