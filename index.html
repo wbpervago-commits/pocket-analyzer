@@ -27,7 +27,7 @@
     </section>
     <section class="grid">
       <article class="card">
-        <div class="card-head"><h2>Рыночная котировка</h2><span class="pill" id="selectedPair">EURUSD_otc · M1</span></div>
+        <div class="card-head"><h2>Рыночная котировка</h2><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" id="selectedPair">EURUSD_otc · M1</span><span class="pill" id="historyStatus">История: ожидание</span></div></div>
         <div class="quote"><div class="price" id="price">—</div><div class="change" id="quoteState">Подключение к потоку Pocket Option…</div></div>
         <div class="chart"><canvas id="candleChart" aria-label="График японских свечей"></canvas><div class="chart-note" id="chartMessage"><b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span></div></div>
         <div class="indicators">
@@ -60,7 +60,7 @@
     const canvas=document.getElementById('candleChart');
     const ctx=canvas.getContext('2d');
     const candles=[];
-    let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null;
+    let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null,historyRequestedKey=null;
 
     function setStatus(text,connected=false){
       connection.textContent='● '+text;
@@ -70,7 +70,8 @@
     }
     function updateSelection(){
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
-      candles.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;
+      candles.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;
+      document.getElementById("historyStatus").textContent="История: загрузка…";
       drawChart();updateIndicators();
       priceEl.textContent='—';quoteState.textContent='Ожидание котировок выбранной пары';
       chartMessage.innerHTML='<b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span>';
@@ -91,6 +92,51 @@
       quoteState.textContent='Поток получен · '+new Date(lastQuoteAt).toLocaleTimeString();
       setStatus('Поток котировок активен',true);
       addTick(stamp,price);
+      requestHistoryIfNeeded(stamp);
+    }
+
+    function requestHistoryIfNeeded(stamp){
+      const key=pair.value+":"+tf.value;
+      if(historyRequestedKey===key)return;
+      historyRequestedKey=key;
+      const period=Number(tf.value);
+      const count=Math.ceil(86400/period);
+      document.getElementById("historyStatus").textContent="История: запрос…";
+      chartMessage.style.display="grid";
+      chartMessage.innerHTML="<b>Загрузка истории за 24 часа</b><br><span class=\"sub\">Получаем исторические свечи Pocket Option</span>";
+      window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"history-request",symbol:pair.value,period,count,stamp},"*");
+    }
+
+    function loadHistoricalCandles(payload){
+      const rows=Array.isArray(payload)?payload:(payload?.data||payload?.candles||payload?.history||[]);
+      if(!Array.isArray(rows)||!rows.length)return;
+      const historical=[];
+      for(const row of rows){
+        let c;
+        if(Array.isArray(row)&&row.length>=5){
+          let time=Number(row[0]);
+          if(time>1e12)time=Math.floor(time/1000);
+          c={time,open:Number(row[1]),close:Number(row[2]),high:Number(row[3]),low:Number(row[4])};
+        }else if(row&&typeof row==="object"){
+          let time=Number(row.time??row.timestamp??row.t);
+          if(time>1e12)time=Math.floor(time/1000);
+          c={time,open:Number(row.open??row.o),high:Number(row.high??row.h),low:Number(row.low??row.l),close:Number(row.close??row.c)};
+        }
+        if(c&&Number.isFinite(c.time)&&Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low)&&Number.isFinite(c.close))historical.push(c);
+      }
+      if(!historical.length)return;
+      const byTime=new Map(historical.map(c=>[c.time,c]));
+      for(const live of candles){
+        const old=byTime.get(live.time);
+        if(old)byTime.set(live.time,{time:live.time,open:old.open,high:Math.max(old.high,live.high),low:Math.min(old.low,live.low),close:live.close});
+        else byTime.set(live.time,live);
+      }
+      const merged=[...byTime.values()].sort((a,b)=>a.time-b.time).slice(-2000);
+      candles.splice(0,candles.length,...merged);
+      lastBucket=candles[candles.length-1].time;
+      chartMessage.style.display="none";
+      document.getElementById("historyStatus").textContent="История: "+candles.length+" свечей · 24ч";
+      drawChart();updateIndicators();
     }
 
     function addTick(stamp,price){
@@ -98,7 +144,7 @@
       if(lastBucket===null||bucket!==lastBucket){
         const candle={time:bucket,open:price,high:price,low:price,close:price};
         candles.push(candle);lastBucket=bucket;
-        if(candles.length>120)candles.shift();
+        if(candles.length>2000)candles.shift();
       }else{
         const c=candles[candles.length-1];
         c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;
@@ -200,6 +246,12 @@
     window.addEventListener('message',event=>{
       if(event.source!==window||event.data?.source!=='POCKET_ANALYZER_QUOTE_BRIDGE')return;
       if(event.data.kind==='quote')decodeQuote(event.data.quote);
+      if(event.data.kind==='history')loadHistoricalCandles(event.data.history);
+      if(event.data.kind==='history-status'){
+        if(event.data.status==="socket-not-ready"||event.data.status==="send-failed"){
+          document.getElementById("historyStatus").textContent="История: ошибка запроса";
+        }
+      }
     });
   </script></body>
 </html>
