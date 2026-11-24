@@ -179,14 +179,23 @@
       if (payload && typeof payload === "object") {
         const rows = Array.isArray(payload) ? payload :
           (payload.data || payload.candles || payload.history || []);
+        const requestContext = inFlight?.item?.payload || null;
         inFlight = null;
         pendingRequest = null;
         post("history-response-received", {
           event: name,
           rows: Array.isArray(rows) ? rows.length : 0,
+          symbol: requestContext?.asset,
+          period: requestContext?.period,
           keys: Object.keys(payload).slice(0, 10)
         });
-        window.postMessage({ source: marker, kind: "history", history: payload }, "*");
+        window.postMessage({
+          source: marker,
+          kind: "history",
+          history: payload,
+          symbol: requestContext?.asset,
+          period: requestContext?.period
+        }, "*");
       }
     }
   }
