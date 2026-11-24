@@ -453,10 +453,11 @@
       const root=document.getElementById('btRisk');
       if(!root||!risk){if(root)root.textContent='Риск догонов: нет данных';return;}
       const pct=x=>x.opportunities?((x.losses/(x.losses+x.wins))*100).toFixed(1)+'%':'—';
-      const row=(label,s)=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #263650;font-size:11px"><span>'+label+' · '+s.trades+' ставок</span><b style="white-space:nowrap">'+s.maxLossStreak+' подряд</b></div>';
+      const row=(label,s)=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #263650;font-size:11px"><span>'+label+' · '+s.trades+' ставок</span><b style="white-space:nowrap">'макс. '+s.maxLossStreak+' · сейчас '+s.currentLossStreak+'</b></div>';
       const conditional=[1,2,3].map(n=>{
         const x=risk.overall.afterLossRun[n];
-        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11px"><span>После '+n+' проигрыша'+(n===1?'':'ей')+' подряд</span><span>'+pct(x)+' · '+x.losses+'/'+(x.losses+x.wins)+' проигрышей</span></div>';
+        const label=n===1?'После 1 проигрыша подряд':'После '+n+' проигрышей подряд';
+        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11px"><span>'+label+'</span><span>'+pct(x)+' · '+x.losses+'/'+(x.losses+x.wins)+' проигрышей</span></div>';
       }).join('');
       root.innerHTML='<div class="sub" style="margin-bottom:5px">Максимальная серия проигрышей</div>'+
         row('Все сигналы',risk.overall)+
@@ -470,7 +471,7 @@
         row('Последние 500',risk.windows.last500)+
         '<div class="sub" style="margin:9px 0 4px">Что происходило после серии проигрышей</div>'+conditional+
         '<div class="sub" style="margin-top:8px">Серий 2+ / 3+ / 4+ / 5+: '+risk.overall.streaks2Plus+' / '+risk.overall.streaks3Plus+' / '+risk.overall.streaks4Plus+' / '+risk.overall.streaks5Plus+
-        '. Ничья прерывает серию. Учитываются сигналы в хронологическом порядке.</div>';
+        '. Ничья прерывает серию. Учитываются сигналы в хронологическом порядке. Без перекрытия — отдельная последовательность, где новая сделка начинается после завершения предыдущей. Тест по закрытым свечам может отличаться от исполнения live-сигнала за несколько секунд до закрытия.</div>';
     }
     function updateBacktest(){
       const rate=document.getElementById('btRate'),signals=document.getElementById('btSignals'),sample=document.getElementById('btSample'),note=document.getElementById('btNote');
