@@ -164,8 +164,8 @@
 
     // These events identify the authenticated data socket. Pocket Option
     // sends some of them as Socket.IO binary events (451-...).
-    if (name === "successauth" || name === "updateStream" ||
-        name === "updateHistoryNewFast" || name === "loadHistoryPeriodFast") {
+    if (name === "updateStream" || name === "updateHistoryNewFast" ||
+        name === "loadHistoryPeriodFast") {
       if (isOpen(socket)) {
         activeSocket = socket;
         flushPendingRequest();
