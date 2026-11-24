@@ -10,11 +10,22 @@
 
     chrome.runtime.onMessage.addListener(message => {
       if (message?.type === "POCKET_ANALYZER_HISTORY") {
+        const selectedSymbol = document.getElementById("pair")?.value;
+        const selectedPeriod = Number(document.getElementById("timeframe")?.value);
+        if (message.symbol && selectedSymbol && message.symbol !== selectedSymbol) return;
+        if (message.period && Number.isFinite(selectedPeriod) &&
+            selectedPeriod > 0 && Number(message.period) !== selectedPeriod) return;
         const rows = Array.isArray(message.history) ? message.history :
           (message.history?.data || message.history?.candles || message.history?.history || []);
         const statusEl = document.getElementById("historyStatus");
         if (statusEl) statusEl.textContent = "Ответ получен · свечей в пакете: " + (Array.isArray(rows) ? rows.length : "?");
-        window.postMessage({ source: APP_MARKER, kind: "history", history: message.history }, "*");
+        window.postMessage({
+          source: APP_MARKER,
+          kind: "history",
+          history: message.history,
+          symbol: message.symbol,
+          period: message.period
+        }, "*");
       }
       if (message?.type === "POCKET_ANALYZER_HISTORY_STATUS") {
         const statusEl = document.getElementById("historyStatus");
@@ -68,7 +79,9 @@
       if (!runtimeAvailable()) return;
       chrome.runtime.sendMessage({
         type: "POCKET_ANALYZER_HISTORY",
-        history: event.data.history
+        history: event.data.history,
+        symbol: event.data.symbol,
+        period: event.data.period
       }).catch(() => {});
     }
 
