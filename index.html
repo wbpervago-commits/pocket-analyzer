@@ -266,8 +266,13 @@
       if(event.data.kind==='quote')decodeQuote(event.data.quote);
       if(event.data.kind==='history')loadHistoricalCandles(event.data.history);
       if(event.data.kind==='history-status'){
+        const details=event.data.details||{};
         if(event.data.status==="socket-not-ready"||event.data.status==="send-failed"){
           document.getElementById("historyStatus").textContent="История: ошибка запроса";
+        }else if(event.data.status==="history-request-sent"){
+          document.getElementById("historyStatus").textContent="История: запрос отправлен, ждём ответ…";
+        }else if(event.data.status==="history-response-received"){
+          document.getElementById("historyStatus").textContent="Ответ Pocket Option: "+(details.event||"получен")+", свечей в пакете: "+(details.rows??"не определено");
         }
       }
     });
