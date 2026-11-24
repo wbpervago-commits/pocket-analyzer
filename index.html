@@ -100,10 +100,10 @@
       if(historyRequestedKey===key)return;
       historyRequestedKey=key;
       const period=Number(tf.value);
-      const count=Math.ceil(86400/period);
+      const count=Math.ceil((90*86400)/period);
       document.getElementById("historyStatus").textContent="История: запрос…";
       chartMessage.style.display="grid";
-      chartMessage.innerHTML="<b>Загрузка истории за 24 часа</b><br><span class=\"sub\">Получаем исторические свечи Pocket Option</span>";
+      chartMessage.innerHTML="<b>Загрузка истории за 90 дней</b><br><span class=\"sub\">Получаем исторические свечи Pocket Option</span>";
       window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"history-request",symbol:pair.value,period,count,stamp},"*");
     }
 
@@ -135,7 +135,7 @@
       candles.splice(0,candles.length,...merged);
       lastBucket=candles[candles.length-1].time;
       chartMessage.style.display="none";
-      document.getElementById("historyStatus").textContent="История: "+candles.length+" свечей · 24ч";
+      document.getElementById("historyStatus").textContent="История: "+historical.length+" свечей · "+(historical.length>1?Math.round((historical[historical.length-1].time-historical[0].time)/86400)+" дней":"меньше суток");
       drawChart();updateIndicators();
     }
 
