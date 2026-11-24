@@ -152,11 +152,14 @@
     if (session !== activeHistorySession) return;
 
     const rows = [...session.rows.entries()]
+      .filter(([stamp]) => stamp > session.targetStart && stamp <= session.anchorTime)
       .sort((a, b) => a[0] - b[0])
       .map(([, row]) => row);
-    const spanSeconds = session.minTime == null || session.maxTime == null
+    const firstTime = rows.length ? rowTimestamp(rows[0]) : null;
+    const lastTime = rows.length ? rowTimestamp(rows[rows.length - 1]) : null;
+    const spanSeconds = firstTime == null || lastTime == null
       ? 0
-      : Math.max(0, session.maxTime - session.minTime);
+      : Math.max(0, lastTime - firstTime);
 
     if (!complete) {
       post("history-incomplete", {
@@ -368,6 +371,7 @@
       id: ++historySessionSequence,
       symbol: request.symbol,
       period: Math.floor(period),
+      anchorTime,
       targetStart: anchorTime - 86400,
       cursorTime: anchorTime,
       pageOffset,
