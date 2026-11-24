@@ -13,6 +13,9 @@
         // The analyzer page listens for history on the original app marker.
         window.postMessage({ source: APP_MARKER, kind: "history", history: message.history }, "*");
       }
+      if (message?.type === "POCKET_ANALYZER_HISTORY_STATUS") {
+        window.postMessage({ source: APP_MARKER, kind: "history-status", status: message.status, details: message.details }, "*");
+      }
     });
 
     window.addEventListener("message", event => {
@@ -50,7 +53,11 @@
         : event.data.status === "history-send-failed"
           ? "send-failed"
           : event.data.status;
-      window.postMessage({ source: APP_MARKER, kind: "history-status", status }, "*");
+      chrome.runtime.sendMessage({
+        type: "POCKET_ANALYZER_HISTORY_STATUS",
+        status,
+        details: { event: event.data.event, rows: event.data.rows, keys: event.data.keys }
+      }).catch(() => {});
     }
   });
 
