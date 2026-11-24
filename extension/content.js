@@ -37,6 +37,7 @@
           "history-request-queued": "История: запрос сохранён · ждём поток Pocket Option",
           "history-request-sent": "История: запрос отправлен · ждём ответ",
           "history-request-retry": "История: повторный запрос · ждём ответ",
+          "history-request-superseded": "История: старый запрос отменён · отправляется новый",
           "history-timeout": "История: Pocket Option не ответил на запрос",
           "history-invalid-request": "История: некорректные параметры запроса",
           "pocket-tab-not-found": "История: откройте вкладку Pocket Option",
