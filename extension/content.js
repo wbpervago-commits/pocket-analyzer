@@ -10,10 +10,23 @@
 
     chrome.runtime.onMessage.addListener(message => {
       if (message?.type === "POCKET_ANALYZER_HISTORY") {
-        // The analyzer page listens for history on the original app marker.
+        const rows = Array.isArray(message.history) ? message.history :
+          (message.history?.data || message.history?.candles || message.history?.history || []);
+        const statusEl = document.getElementById("historyStatus");
+        if (statusEl) statusEl.textContent = "Ответ получен · свечей в пакете: " + (Array.isArray(rows) ? rows.length : "?");
         window.postMessage({ source: APP_MARKER, kind: "history", history: message.history }, "*");
       }
       if (message?.type === "POCKET_ANALYZER_HISTORY_STATUS") {
+        const statusEl = document.getElementById("historyStatus");
+        const d = message.details || {};
+        const labels = {
+          "socket-not-ready": "История: сокет не готов",
+          "send-failed": "История: ошибка отправки",
+          "history-hook-installed": "История: перехватчик установлен",
+          "history-request-sent": "История: запрос отправлен, ждём ответ",
+          "history-response-received": "Ответ Pocket Option: " + (d.event || "событие") + " · свечей: " + (d.rows ?? "?")
+        };
+        if (statusEl) statusEl.textContent = labels[message.status] || ("История: " + message.status);
         window.postMessage({ source: APP_MARKER, kind: "history-status", status: message.status, details: message.details }, "*");
       }
     });
@@ -22,6 +35,8 @@
       if (event.source !== window || event.data?.source !== APP_MARKER ||
           event.data.kind !== "history-request") return;
       if (!runtimeAvailable()) return;
+      const statusEl = document.getElementById("historyStatus");
+      if (statusEl) statusEl.textContent = "История: передаю запрос в Pocket Option…";
       chrome.runtime.sendMessage({
         type: "POCKET_ANALYZER_HISTORY_REQUEST",
         request: {
@@ -30,7 +45,11 @@
           count: event.data.count,
           stamp: event.data.stamp
         }
-      }).catch(() => {});
+      }).then(() => {
+        if (statusEl) statusEl.textContent = "История: запрос передан, жду ответ страницы…";
+      }).catch(() => {
+        if (statusEl) statusEl.textContent = "История: ошибка связи расширения";
+      });
     });
     return;
   }
