@@ -23,7 +23,7 @@
     .chart-zoom-label{font-size:11px;color:#b8c8df;min-width:82px;text-align:center}
     .chart-hint{margin-left:auto;color:var(--muted);font-size:11px}
     .chart-note{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px;pointer-events:none}.signal{min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#0d1829;border:1px dashed #354967;border-radius:13px;padding:20px}.signal-mark{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#28364c;color:var(--yellow);font-size:25px;margin-bottom:12px}.signal strong{font-size:23px}.signal p{margin:7px 0 0;color:var(--muted);font-size:13px;max-width:320px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.stat{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.stat span{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:18px;margin-top:4px}.indicators{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.indicator{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.indicator span{display:block;color:var(--muted);font-size:11px}.indicator b{font-size:14px}.footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}.pill{padding:4px 8px;border-radius:20px;background:#26364d;color:#b9c9e1;font-size:11px}
-    @media(max-width:760px){.controls{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.wrap{padding:20px 14px}.top{align-items:flex-start}.price{font-size:32px}}@media(max-width:420px){.controls{grid-template-columns:1fr 1fr}.field{padding:10px}.field select{font-size:13px}.stats{grid-template-columns:1fr}}
+    @media(max-width:760px){.controls{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.wrap{padding:20px 14px}.top{align-items:flex-start}.price{font-size:32px}.chart-hint{display:none}.chart-toolbar{gap:5px}.chart{height:300px}}@media(max-width:420px){.controls{grid-template-columns:1fr 1fr}.field{padding:10px}.field select{font-size:13px}.stats{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -283,7 +283,7 @@
 
     let chartDrag=null;
     chartViewport.addEventListener('pointerdown',event=>{
-      if(event.button!==0)return;
+      if(event.pointerType!=='mouse'||event.button!==0)return;
       chartDrag={pointerId:event.pointerId,startX:event.clientX,startScroll:chartViewport.scrollLeft,moved:false};
       chartViewport.setPointerCapture(event.pointerId);
     });
