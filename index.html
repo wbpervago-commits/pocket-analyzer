@@ -249,6 +249,19 @@
     quoteState.textContent='Откройте Pocket Option в соседней вкладке. Расширение передаст котировки сюда.';
     window.addEventListener('message',event=>{
       if(event.source!==window||event.data?.source!=='POCKET_ANALYZER_QUOTE_BRIDGE')return;
+      if(event.data.kind==='bridge-status'){
+        const labels={
+          'hook-installed':'Расширение: скрипт установлен',
+          'socket-created':'Расширение: найден WebSocket',
+          'socket-open':'Pocket Option: WebSocket подключён',
+          'stream-message':'Pocket Option: получены сообщения потока',
+          'quote-decoded':'Pocket Option: котировка распознана'
+        };
+        if(labels[event.data.status]){
+          quoteState.textContent=labels[event.data.status];
+          if(event.data.status==='socket-open'||event.data.status==='quote-decoded')setStatus(labels[event.data.status],true);
+        }
+      }
       if(event.data.kind==='quote')decodeQuote(event.data.quote);
       if(event.data.kind==='history')loadHistoricalCandles(event.data.history);
       if(event.data.kind==='history-status'){
