@@ -217,11 +217,12 @@
     if (pattern.bullEngulf || pattern.bullPin) add(1, pattern.bullEngulf ? 'Бычье поглощение' : 'Бычий пин-бар');
     if (pattern.bearEngulf || pattern.bearPin) add(-1, pattern.bearEngulf ? 'Медвежье поглощение' : 'Медвежий пин-бар');
 
+    let breakoutDirection = 0;
     const lookback = candles.slice(Math.max(0, i - 20), i);
     if (lookback.length >= 15) {
       const priorHigh = Math.max(...lookback.map(x => x.high)), priorLow = Math.min(...lookback.map(x => x.low));
-      if (c.close > priorHigh) add(2, 'Пробой максимума последних 20 свечей');
-      else if (c.close < priorLow) add(-2, 'Пробой минимума последних 20 свечей');
+      if (c.close > priorHigh) { breakoutDirection = 1; add(2, 'Пробой максимума последних 20 свечей'); }
+      else if (c.close < priorLow) { breakoutDirection = -1; add(-2, 'Пробой минимума последних 20 свечей'); }
     }
 
     const atrPct = atr[i] && c.close ? atr[i] / Math.abs(c.close) : null;
@@ -232,7 +233,19 @@
     return {
       ready: true, direction, score, confidence: direction === 'NONE' ? null : strength,
       indicators: { ema9: e9[i], ema21: e21[i], ema50: e50[i], rsi: rs[i], macd: mc.line[i], macdSignal: mc.signal[i], macdHist: mc.hist[i], stochasticK: st.k[i], stochasticD: st.d[i], bb: b, atr: atr[i], adx: adx[i], atrPct },
-      pattern, higherTrend, factors, reason: direction === 'NONE' ? 'Недостаточно согласованных факторов' : 'Направление подтверждено несколькими группами факторов'
+      pattern, higherTrend, factors,
+      features: {
+        emaStack: e9[i] > e21[i] && e21[i] > e50[i] ? 1 : e9[i] < e21[i] && e21[i] < e50[i] ? -1 : 0,
+        emaSlopeDirection: slope > 0 ? 1 : slope < 0 ? -1 : 0,
+        macdMomentumDirection: mc.hist[i] != null && mc.hist[i - 1] != null && mc.hist[i] > 0 && mc.hist[i] > mc.hist[i - 1] ? 1 : mc.hist[i] != null && mc.hist[i - 1] != null && mc.hist[i] < 0 && mc.hist[i] < mc.hist[i - 1] ? -1 : 0,
+        rsiDirection: rs[i] >= 52 && rs[i] <= 68 ? 1 : rs[i] <= 48 && rs[i] >= 32 ? -1 : 0,
+        bollingerDirection: b && b.percentB > 0.55 && b.percentB < 0.9 ? 1 : b && b.percentB < 0.45 && b.percentB > 0.1 ? -1 : 0,
+        stochasticDirection: st.k[i] != null && st.d[i] != null && st.k[i] > st.d[i] && st.k[i] >= 50 && st.k[i] <= 85 ? 1 : st.k[i] != null && st.d[i] != null && st.k[i] < st.d[i] && st.k[i] <= 50 && st.k[i] >= 15 ? -1 : 0,
+        breakoutDirection,
+        patternDirection: pattern.bullEngulf || pattern.bullPin ? 1 : pattern.bearEngulf || pattern.bearPin ? -1 : 0,
+        htfDirection: higherTrend ? higherTrend.direction : 0
+      },
+      reason: direction === 'NONE' ? 'Недостаточно согласованных факторов' : 'Направление подтверждено несколькими группами факторов'
     };
   }
 
@@ -300,7 +313,7 @@
       else { losses++; side.losses++; }
 
       const adx = result.indicators?.adx;
-      const tradeOutcome = { direction: result.direction, adx, win, tie, entryIndex: i + 1 };
+      const tradeOutcome = { direction: result.direction, adx, win, tie, entryIndex: i + 1, score: result.score, features: result.features, higherDirection: result.features?.htfDirection ?? 0 };
       outcomes.push(tradeOutcome);
       if (i >= nextNonOverlappingIndex) {
         nonOverlappingOutcomes.push(tradeOutcome);
@@ -327,6 +340,39 @@
       label, ...g, winRate: g.wins + g.losses ? g.wins / (g.wins + g.losses) * 100 : null,
       expectedValue: g.wins + g.losses ? (g.wins * payoutRate - g.losses) / (g.wins + g.losses) : null
     }));
+    const modelDefinitions = [
+      { id:'down_all', label:'ВНИЗ · все сигналы', test:t=>t.direction==='DOWN' },
+      { id:'up_all', label:'ВВЕРХ · все сигналы', test:t=>t.direction==='UP' },
+      { id:'down_adx', label:'ВНИЗ · ADX 20–25', test:t=>t.direction==='DOWN' && t.adx>=20 && t.adx<25 },
+      { id:'down_adx_htf', label:'ВНИЗ · ADX 20–25 + старший ТФ совпадает', test:t=>t.direction==='DOWN' && t.adx>=20 && t.adx<25 && t.higherDirection===-1 },
+      { id:'down_adx_ema', label:'ВНИЗ · ADX 20–25 + EMA вниз', test:t=>t.direction==='DOWN' && t.adx>=20 && t.adx<25 && t.features?.emaStack===-1 },
+      { id:'down_adx_macd', label:'ВНИЗ · ADX 20–25 + MACD медвежий', test:t=>t.direction==='DOWN' && t.adx>=20 && t.adx<25 && t.features?.macdMomentumDirection===-1 },
+      { id:'down_adx_ema_macd', label:'ВНИЗ · ADX 20–25 + EMA + MACD', test:t=>t.direction==='DOWN' && t.adx>=20 && t.adx<25 && t.features?.emaStack===-1 && t.features?.macdMomentumDirection===-1 },
+      { id:'down_adx_htf_ema_macd', label:'ВНИЗ · ADX 20–25 + HTF + EMA + MACD', test:t=>t.direction==='DOWN' && t.adx>=20 && t.adx<25 && t.higherDirection===-1 && t.features?.emaStack===-1 && t.features?.macdMomentumDirection===-1 },
+      { id:'down_score_htf', label:'ВНИЗ · баллы 8+ + старший ТФ совпадает', test:t=>t.direction==='DOWN' && Math.abs(t.score)>=8 && t.higherDirection===-1 },
+      { id:'down_full', label:'ВНИЗ · EMA + наклон + MACD + RSI + Bollinger + HTF', test:t=>t.direction==='DOWN' && t.features?.emaStack===-1 && t.features?.emaSlopeDirection===-1 && t.features?.macdMomentumDirection===-1 && t.features?.rsiDirection===-1 && t.features?.bollingerDirection===-1 && t.higherDirection===-1 },
+      { id:'up_adx', label:'ВВЕРХ · ADX 20–25', test:t=>t.direction==='UP' && t.adx>=20 && t.adx<25 },
+      { id:'up_adx_htf', label:'ВВЕРХ · ADX 20–25 + старший ТФ совпадает', test:t=>t.direction==='UP' && t.adx>=20 && t.adx<25 && t.higherDirection===1 },
+      { id:'up_adx_ema_macd', label:'ВВЕРХ · ADX 20–25 + EMA + MACD', test:t=>t.direction==='UP' && t.adx>=20 && t.adx<25 && t.features?.emaStack===1 && t.features?.macdMomentumDirection===1 },
+      { id:'up_full', label:'ВВЕРХ · EMA + наклон + MACD + RSI + Bollinger + HTF', test:t=>t.direction==='UP' && t.features?.emaStack===1 && t.features?.emaSlopeDirection===1 && t.features?.macdMomentumDirection===1 && t.features?.rsiDirection===1 && t.features?.bollingerDirection===1 && t.higherDirection===1 }
+    ];
+    const splitAt = Math.max(1, Math.floor(outcomes.length * 0.7));
+    const summarizeModel = rows => {
+      const w = rows.filter(x=>x.win && !x.tie).length;
+      const l = rows.filter(x=>!x.win && !x.tie).length;
+      const ties = rows.filter(x=>x.tie).length;
+      const decided = w + l;
+      const riskStats = streakStats(rows);
+      return { signals: rows.length, wins:w, losses:l, ties, winRate: decided ? w/decided*100 : null,
+        expectedValue: decided ? (w*payoutRate-l)/decided : null, maxLossStreak:riskStats.maxLossStreak };
+    };
+    const models = modelDefinitions.map(def => {
+      const selected = outcomes.filter(def.test);
+      const train = selected.filter(x=>x.entryIndex < (outcomes[splitAt]?.entryIndex ?? Infinity));
+      const test = selected.filter(x=>x.entryIndex >= (outcomes[splitAt]?.entryIndex ?? Infinity));
+      return { id:def.id, label:def.label, full:summarizeModel(selected), train:summarizeModel(train), test:summarizeModel(test),
+        status: train.length >= 20 && test.length >= 10 ? 'tested' : 'small-sample' };
+    });
     const risk = {
       overall: streakStats(outcomes),
       nonOverlapping: streakStats(nonOverlappingOutcomes),
@@ -341,7 +387,7 @@
         last500: streakStats(outcomes.slice(-500))
       }
     };
-    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, risk, expiryBars: step };
+    return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, risk, models, modelSplitIndex: splitAt, expiryBars: step };
   }
 
   root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
