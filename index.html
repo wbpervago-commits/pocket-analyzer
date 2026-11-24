@@ -271,6 +271,17 @@
         }
       }
     });
-    window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"extension-ping"},"*");
+    let extensionHandshakeAttempts=0;
+    const extensionHandshake=setInterval(()=>{
+      window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"extension-ping"},"*");
+      extensionHandshakeAttempts++;
+      if(extensionHandshakeAttempts>=10)clearInterval(extensionHandshake);
+    },500);
+    window.addEventListener('message',event=>{
+      if(event.source===window&&event.data?.source==='POCKET_ANALYZER_QUOTE_BRIDGE'&&
+         event.data.kind==='bridge-status'&&event.data.status==='analyzer-extension-ready'){
+        clearInterval(extensionHandshake);
+      }
+    });
   </script></body>
 </html>
