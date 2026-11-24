@@ -105,7 +105,7 @@
           }
         };
         socket.onerror=()=>setStatus('Сервер не разрешил подключение из этой вкладки');
-        socket.onclose=()=>{socketReady=false;setStatus('Соединение закрыто — проверьте доступность потока');};
+        socket.onclose=(event)=>{socketReady=false;const reason=event.reason?(' · '+event.reason):'';setStatus('Соединение закрыто · код '+event.code+reason);quoteState.textContent='Сервер закрыл соединение. Код: '+event.code+(event.reason?' · '+event.reason:'');};
       }catch(e){setStatus('Не удалось открыть WebSocket');}
     }
     connect();
