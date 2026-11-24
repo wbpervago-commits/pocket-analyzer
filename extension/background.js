@@ -19,6 +19,16 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return;
   }
 
+  if (message?.type === "POCKET_ANALYZER_HISTORY_STATUS") {
+    chrome.tabs.query({ url: ANALYZER_URL + "*" }, tabs => {
+      for (const tab of tabs) {
+        if (tab.id == null) continue;
+        chrome.tabs.sendMessage(tab.id, message).catch(() => {});
+      }
+    });
+    return;
+  }
+
   if (message?.type === "POCKET_ANALYZER_HISTORY" && message.history) {
     chrome.tabs.query({ url: ANALYZER_URL + "*" }, tabs => {
       for (const tab of tabs) {
