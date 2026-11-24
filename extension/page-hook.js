@@ -34,7 +34,6 @@
 
     if (eventName === "updateStream") {
       activeSocket = socket;
-      publishQuotes(payload);
       return;
     }
 
