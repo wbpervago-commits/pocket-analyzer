@@ -72,7 +72,7 @@
           <div class="stat"><span>Сигналов в сессии</span><b id="signalCount">0</b></div>
         </div>
         <div class="analysis-details"><h3>Факторы решения</h3><ul id="signalFactors"><li>Ожидание данных</li></ul></div>
-        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8" selected>80%</option><option value="0.85">85%</option><option value="0.9">90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><p class="sub" id="btNote" style="margin:8px 0 0">Расчёт по загруженным свечам. Это тест на истории, не гарантия результата.</p></div>
+        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8" selected>80%</option><option value="0.85">85%</option><option value="0.9">90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Расчёт по загруженным свечам. Это тест на истории, не гарантия результата.</p></div>
         <p class="sub" style="margin-top:10px">* Сила — внутренняя оценка согласованности факторов, не статистическая вероятность выигрыша.</p>
       </aside>
     </section>
@@ -456,7 +456,16 @@
       if(!bt.supported){rate.textContent='—';signals.textContent='—';sample.textContent='—';document.getElementById('btEdge').textContent='Ожидаемое значение: —';note.textContent=bt.reason;return;}
       rate.textContent=bt.winRate==null?'—':bt.winRate.toFixed(1)+'%';signals.textContent=String(bt.signals);sample.textContent=bt.wins+' / '+bt.losses;
       document.getElementById('btEdge').textContent='Безубыточность: '+bt.breakEvenRate.toFixed(1)+'% · матожидание: '+(bt.expectedValue==null?'—':(bt.expectedValue>=0?'+':'')+(bt.expectedValue*100).toFixed(1)+'% на ставку');
-      note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены.':'Walk-forward по закрытым свечам. Выплата брокера и задержки исполнения не учтены.';
+      const diag=document.getElementById('btDiagnostics');
+      diag.innerHTML='<div class="sub" style="margin-bottom:6px">Диагностика фильтров · победы / поражения · доля верных</div>';
+      (bt.diagnostics||[]).forEach(g=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #263650;font-size:11px';
+        const left=document.createElement('span');left.textContent=g.label+' · '+g.signals+' сигн.';
+        const right=document.createElement('span');right.style.whiteSpace='nowrap';right.textContent=(g.winRate==null?'—':g.winRate.toFixed(1)+'%')+' · '+g.wins+'/'+g.losses;
+        row.append(left,right);diag.appendChild(row);
+      });
+      note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены из доли верных.':'Walk-forward по закрытым свечам. Диагностика показывает группы условий, а не доказывает причинность. Выплата и задержки исполнения не учтены.';
     }
     function updateCountdown(stamp){
       const period=Number(tf.value),remaining=period-(stamp%period);
