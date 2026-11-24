@@ -118,7 +118,6 @@
     tf.addEventListener('change',updateSelection);
     document.getElementById('expiry').addEventListener('change',updateBacktest);
     document.getElementById('payout').addEventListener('change',updateBacktest);
-    document.getElementById('expiry').addEventListener('change',updateBacktest);
 
     function decodeQuote(value){
       if(Array.isArray(value)&&value.length&&Array.isArray(value[0])) value=value[0];
@@ -176,7 +175,9 @@
       chartFollowLatest=true;chartViewStart=maxChartStart();
       lastBucket=candles[candles.length-1].time;
       chartMessage.style.display="none";
-      document.getElementById("historyStatus").textContent="История: "+candles.length+" свечей · 24ч";
+      const oldest=candles[0]?.time||0,newest=candles[candles.length-1]?.time||0;
+      const spanHours=oldest&&newest?Math.max(0,(newest-oldest)/3600):0;
+      document.getElementById("historyStatus").textContent="История: "+candles.length+" свечей · "+spanHours.toFixed(1)+" ч";
       drawChart();updateIndicators();updateBacktest();
     }
 
@@ -439,9 +440,9 @@
 
     function updateBacktest(){
       const rate=document.getElementById('btRate'),signals=document.getElementById('btSignals'),sample=document.getElementById('btSample'),note=document.getElementById('btNote');
-      if(!window.PocketAnalysis||candles.length<100){rate.textContent='—';signals.textContent='—';sample.textContent='—';note.textContent='Для проверки нужно не менее 100 свечей.';return;}
+      if(!window.PocketAnalysis||candles.length<100){rate.textContent='—';signals.textContent='—';sample.textContent='—';document.getElementById('btEdge').textContent='Ожидаемое значение: —';note.textContent='Для проверки нужно не менее 100 свечей.';return;}
       const bt=PocketAnalysis.backtest(candles,Number(document.getElementById('expiry').value),Number(tf.value),Number(document.getElementById('payout').value));
-      if(!bt.supported){rate.textContent='—';signals.textContent='—';sample.textContent='—';note.textContent=bt.reason;return;}
+      if(!bt.supported){rate.textContent='—';signals.textContent='—';sample.textContent='—';document.getElementById('btEdge').textContent='Ожидаемое значение: —';note.textContent=bt.reason;return;}
       rate.textContent=bt.winRate==null?'—':bt.winRate.toFixed(1)+'%';signals.textContent=String(bt.signals);sample.textContent=bt.wins+' / '+bt.losses;
       document.getElementById('btEdge').textContent='Безубыточность: '+bt.breakEvenRate.toFixed(1)+'% · матожидание: '+(bt.expectedValue==null?'—':(bt.expectedValue>=0?'+':'')+(bt.expectedValue*100).toFixed(1)+'% на ставку');
       note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены.':'Walk-forward по закрытым свечам. Выплата брокера и задержки исполнения не учтены.';
