@@ -65,7 +65,7 @@
       </article>
       <aside class="card">
         <div class="card-head"><h2>Решение анализатора</h2><span class="pill">Decision Maker</span></div>
-        <div class="signal" id="signalPanel"><div class="signal-mark" id="signalMark">…</div><strong id="signalDirection">НЕТ СИГНАЛА</strong><p id="signalReason">Ожидание проверенных данных и окна формирования сигнала.</p></div>
+        <div class="signal" id="signalPanel"><div class="signal-mark" id="signalMark" hidden></div><strong id="signalDirection" hidden></strong><p id="signalReason" hidden></p></div>
         <div class="stats">
           <div class="stat"><span>Сила сигнала*</span><b id="signalStrength">—</b></div>
           <div class="stat"><span>До закрытия</span><b id="countdown">—</b></div>
@@ -417,15 +417,20 @@
     }
 
     function renderSignal(direction,strength,reason,factors){
-      const mark=document.getElementById('signalMark'),title=document.getElementById('signalDirection'),panel=document.getElementById('signalPanel');
-      mark.textContent=direction==='UP'?'↑':direction==='DOWN'?'↓':'…';
-      mark.style.color=direction==='UP'?'#20c997':direction==='DOWN'?'#ff647c':'#f4c15d';
-      title.textContent=direction==='UP'?'UP · ВВЕРХ':direction==='DOWN'?'DOWN · ВНИЗ':'НЕТ СИГНАЛА';
+      const mark=document.getElementById('signalMark'),title=document.getElementById('signalDirection'),panel=document.getElementById('signalPanel'),reasonEl=document.getElementById('signalReason');
+      const hasSignal=direction==='UP'||direction==='DOWN';
+      mark.hidden=!hasSignal;title.hidden=!hasSignal;reasonEl.hidden=!hasSignal;
+      mark.textContent=direction==='UP'?'↑':direction==='DOWN'?'↓':'';
+      mark.style.color=direction==='UP'?'#20c997':'#ff647c';
+      title.textContent=direction==='UP'?'ВВЕРХ':'ВНИЗ';
+      title.style.color=direction==='UP'?'#20c997':'#ff647c';
       panel.style.borderColor=direction==='UP'?'#236c59':direction==='DOWN'?'#7c3445':'#354967';
+      panel.style.background=direction==='UP'?'#10271f':direction==='DOWN'?'#2a1720':'#0d1829';
       document.getElementById('signalStrength').textContent=strength==null?'—':strength+'/100';
-      document.getElementById('signalReason').textContent=reason;
+      reasonEl.textContent=reason||'';
       const list=document.getElementById('signalFactors');list.innerHTML='';
-      (factors&&factors.length?factors:[{label:'Недостаточно согласованных факторов'}]).slice(0,6).forEach(f=>{const li=document.createElement('li');li.textContent=f.label;list.appendChild(li);});
+      if(hasSignal)(factors||[]).slice(0,6).forEach(f=>{const li=document.createElement('li');li.textContent=f.label;list.appendChild(li);});
+      else {const li=document.createElement('li');li.textContent='Ожидание сигнала';list.appendChild(li);}
     }
 
     function updateLiveSignal(stamp){
