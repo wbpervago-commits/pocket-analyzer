@@ -60,6 +60,7 @@
           <div class="indicator"><span>ADX (14) · сила тренда</span><b id="adxValue">—</b></div>
           <div class="indicator"><span>ATR (14) · волатильность</span><b id="atrValue">—</b></div>
           <div class="indicator"><span>Stochastic (14, 3)</span><b id="stochValue">—</b></div>
+          <div class="indicator"><span>Старший таймфрейм</span><b id="htfValue">—</b></div>
         </div>
       </article>
       <aside class="card">
@@ -401,8 +402,8 @@
 
     function updateIndicators(){
       if(!window.PocketAnalysis||candles.length<1)return;
-      const result=PocketAnalysis.evaluate(candles),d=pair.value.includes('JPY')?3:5;
-      if(!result.ready){['emaValue','rsiValue','macdValue','bbValue','adxValue','atrValue','stochValue'].forEach(id=>document.getElementById(id).textContent='Нужно 60 свечей');return;}
+      const result=PocketAnalysis.evaluate(candles,Number(tf.value)),d=pair.value.includes('JPY')?3:5;
+      if(!result.ready){['emaValue','rsiValue','macdValue','bbValue','adxValue','atrValue','stochValue','htfValue'].forEach(id=>document.getElementById(id).textContent='Нужно 60 свечей');return;}
       const v=result.indicators;
       document.getElementById('emaValue').textContent=v.ema9>v.ema21&&v.ema21>v.ema50?'Бычий тренд':v.ema9<v.ema21&&v.ema21<v.ema50?'Медвежий тренд':v.ema9>v.ema21?'Умеренно вверх':v.ema9<v.ema21?'Умеренно вниз':'Нейтрально';
       document.getElementById('rsiValue').textContent=v.rsi==null?'—':v.rsi.toFixed(1);
@@ -411,6 +412,7 @@
       document.getElementById('adxValue').textContent=v.adx==null?'—':v.adx.toFixed(1)+(v.adx>=25?' · сильный':v.adx<20?' · слабый':' · умеренный');
       document.getElementById('atrValue').textContent=v.atr==null?'—':v.atr.toFixed(d);
       document.getElementById('stochValue').textContent=v.stochasticK==null?'—':v.stochasticK.toFixed(1)+' / '+v.stochasticD.toFixed(1);
+      document.getElementById('htfValue').textContent=result.higherTrend==null?'Нужно больше истории':result.higherTrend.direction>0?'Вверх':result.higherTrend.direction<0?'Вниз':'Нейтрально';
     }
 
     function renderSignal(direction,strength,reason,factors){
@@ -429,7 +431,7 @@
       const period=Number(tf.value),remaining=period-(stamp%period),lead=Number(document.getElementById('lead').value);
       if(activeSignal&&lastSignalBucket===lastBucket){renderSignal(activeSignal.direction,activeSignal.confidence,activeSignal.reason,activeSignal.factors);return;}
       if(remaining>lead){renderSignal('NONE',null,'Сигнал будет рассчитан за '+lead+' секунд до закрытия свечи.',[]);return;}
-      const result=PocketAnalysis.evaluate(candles);
+      const result=PocketAnalysis.evaluate(candles,Number(tf.value));
       if(!result.ready){renderSignal('NONE',null,result.reason,[]);return;}
       activeSignal=result;lastSignalBucket=lastBucket;renderSignal(result.direction,result.confidence,result.reason,result.factors);
       if(result.direction!=='NONE'){signalCount++;document.getElementById('signalCount').textContent=String(signalCount);}
