@@ -9,7 +9,6 @@ from pocketoptionapi import PocketOption
 
 SYMBOL = "EURUSD_otc"
 PERIOD = 60
-LOOKBACK_SECONDS = 24 * 60 * 60
 OUTPUT = Path(__file__).with_name("EURUSD_otc_M1_history.json")
 
 
@@ -62,16 +61,12 @@ def main():
             input("Нажмите Enter для выхода...")
             return 1
 
-        now = int(api.get_server_timestamp())
-        cutoff = now - LOOKBACK_SECONDS
         normalized = []
         for candle in candles:
             try:
                 stamp = int(float(candle.get("time", candle.get("timestamp"))))
                 if stamp > 10**12:
                     stamp //= 1000
-                if stamp < cutoff or stamp > now:
-                    continue
                 row = {
                     "time": stamp,
                     "open": float(candle["open"]),
@@ -85,10 +80,10 @@ def main():
 
         normalized.sort(key=lambda item: item["time"])
         deduped = {item["time"]: item for item in normalized}
-        normalized = list(deduped.values())
+        normalized = list(deduped.values())[-1440:]
 
         if not normalized:
-            print("Ответ получен, но в нём нет корректных свечей за последние 24 часа.")
+            print("Ответ получен, но в нём нет корректных минутных свечей.")
             input("Нажмите Enter для выхода...")
             return 1
 
