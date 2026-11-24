@@ -134,7 +134,31 @@
     return { bullEngulf, bearEngulf, bullPin, bearPin, inside, doji: body / range <= 0.1 };
   }
 
-  function evaluate(candles) {
+  function higherTimeframeTrend(candles, timeframeSeconds) {
+    const factor = timeframeSeconds === 60 ? 5 : timeframeSeconds === 120 ? 3 : timeframeSeconds === 300 ? 3 : 4;
+    const higherSeconds = timeframeSeconds * factor;
+    if (candles.length < factor * 20) return null;
+    const currentGroup = Math.floor(candles[candles.length - 1].time / higherSeconds);
+    const groups = new Map();
+    for (const c of candles) {
+      const key = Math.floor(c.time / higherSeconds);
+      if (key >= currentGroup) continue;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    }
+    const bars = [];
+    for (const [key, rows] of [...groups.entries()].sort((a,b)=>a[0]-b[0])) {
+      if (rows.length !== factor) continue;
+      bars.push({ time: key * higherSeconds, open: rows[0].open, high: Math.max(...rows.map(x=>x.high)), low: Math.min(...rows.map(x=>x.low)), close: rows[rows.length - 1].close });
+    }
+    const closes = bars.map(x=>x.close), e20 = emaSeries(closes, 20);
+    if (closes.length < 22 || e20[e20.length - 1] == null) return null;
+    const last = closes.length - 1;
+    const slope = e20[last] - e20[last - 3];
+    return { direction: closes[last] > e20[last] && slope > 0 ? 1 : closes[last] < e20[last] && slope < 0 ? -1 : 0, bars: bars.length, seconds: higherSeconds };
+  }
+
+  function evaluate(candles, timeframeSeconds = 60) {
     const n = candles.length;
     if (n < 60) return { ready: false, reason: 'Для анализа нужно минимум 60 свечей', score: 0, direction: 'NONE', confidence: null };
     const closes = candles.map(c => c.close);
@@ -142,6 +166,7 @@
     const rs = rsiSeries(closes), mc = macdSeries(closes), bb = bandsSeries(closes), st = stochasticSeries(candles), atr = atrSeries(candles), adx = adxSeries(candles);
     const i = n - 1, c = candles[i], p = candles[i - 1];
     const pattern = candlePattern(c, p);
+    const higherTrend = higherTimeframeTrend(candles, timeframeSeconds);
     let score = 0;
     const factors = [];
     const add = (v, label) => { score += v; if (v) factors.push({ value: v, label }); };
@@ -172,6 +197,12 @@
       else if (b.percentB < 0.45 && b.percentB > 0.1) add(-1, 'Цена в нижней части Bollinger');
     }
 
+    if (higherTrend && higherTrend.direction !== 0) {
+      if (score > 0 && higherTrend.direction > 0) add(1, 'Старший таймфрейм подтверждает рост');
+      else if (score < 0 && higherTrend.direction < 0) add(-1, 'Старший таймфрейм подтверждает снижение');
+      else if (score > 0 && higherTrend.direction < 0) add(-1, 'Старший таймфрейм против роста');
+      else if (score < 0 && higherTrend.direction > 0) add(1, 'Старший таймфрейм против снижения');
+    }
     if (st.k[i] != null && st.d[i] != null) {
       if (st.k[i] > st.d[i] && st.k[i] >= 50 && st.k[i] <= 85) add(1, 'Stochastic подтверждает восходящий импульс');
       else if (st.k[i] < st.d[i] && st.k[i] <= 50 && st.k[i] >= 15) add(-1, 'Stochastic подтверждает нисходящий импульс');
@@ -189,13 +220,13 @@
 
     const atrPct = atr[i] && c.close ? atr[i] / Math.abs(c.close) : null;
     const aligned = (score >= 4 && e9[i] > e21[i]) || (score <= -4 && e9[i] < e21[i]);
-    const volatileEnough = atrPct == null || atrPct > 0;
+    const volatileEnough = atrPct != null && atrPct > 0.00002;
     const direction = aligned && volatileEnough ? (score >= 4 ? 'UP' : 'DOWN') : 'NONE';
     const strength = Math.min(95, Math.round(50 + Math.abs(score) * 5));
     return {
       ready: true, direction, score, confidence: direction === 'NONE' ? null : strength,
       indicators: { ema9: e9[i], ema21: e21[i], ema50: e50[i], rsi: rs[i], macd: mc.line[i], macdSignal: mc.signal[i], macdHist: mc.hist[i], stochasticK: st.k[i], stochasticD: st.d[i], bb: b, atr: atr[i], adx: adx[i], atrPct },
-      pattern, factors, reason: direction === 'NONE' ? 'Недостаточно согласованных факторов' : 'Направление подтверждено несколькими группами факторов'
+      pattern, higherTrend, factors, reason: direction === 'NONE' ? 'Недостаточно согласованных факторов' : 'Направление подтверждено несколькими группами факторов'
     };
   }
 
@@ -205,7 +236,7 @@
     let signals = 0, wins = 0, losses = 0, ties = 0;
     const byDirection = { UP: { signals: 0, wins: 0 }, DOWN: { signals: 0, wins: 0 } };
     for (let i = 59; i + step < candles.length; i++) {
-      const result = evaluate(candles.slice(0, i + 1));
+      const result = evaluate(candles.slice(0, i + 1), timeframeSeconds);
       if (result.direction === 'NONE') continue;
       const entry = candles[i + 1].open, exit = candles[i + step].close;
       signals++;
