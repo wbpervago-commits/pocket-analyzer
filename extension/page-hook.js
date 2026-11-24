@@ -109,6 +109,164 @@
     }
   }
 
+  const PAGE_CANDLE_LIMIT = 150;
+  let activeHistorySession = null;
+  let historySessionSequence = 0;
+
+  function extractRows(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== "object") return [];
+    const rows = payload.data || payload.candles || payload.history || [];
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  function rowTimestamp(row) {
+    let value;
+    if (Array.isArray(row)) value = row[0];
+    else if (row && typeof row === "object") {
+      value = row.time ?? row.timestamp ?? row.t;
+    }
+    let stamp = Number(value);
+    if (!Number.isFinite(stamp) || stamp <= 0) return null;
+    if (stamp > 1e12) stamp = Math.floor(stamp / 1000);
+    return Math.floor(stamp);
+  }
+
+  function makePage(session) {
+    return {
+      session,
+      attempts: 0,
+      payload: {
+        asset: session.symbol,
+        index: Math.floor(Date.now() / 10),
+        // Pocket Option returns at most about 150 candles per history packet.
+        // Its offset is the page duration in seconds (150 bars * period).
+        offset: session.pageOffset,
+        period: session.period,
+        time: session.cursorTime
+      }
+    };
+  }
+
+  function finishSession(session, complete, reason) {
+    if (session !== activeHistorySession) return;
+
+    const rows = [...session.rows.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, row]) => row);
+    const spanSeconds = session.minTime == null || session.maxTime == null
+      ? 0
+      : Math.max(0, session.maxTime - session.minTime);
+
+    if (!complete) {
+      post("history-incomplete", {
+        pages: session.pages,
+        rows: rows.length,
+        spanSeconds,
+        reason: reason || "history-window-not-covered"
+      });
+      return;
+    }
+
+    post("history-complete", {
+      pages: session.pages,
+      rows: rows.length,
+      spanSeconds
+    });
+
+    window.postMessage({
+      source: marker,
+      kind: "history",
+      history: { data: rows },
+      symbol: session.symbol,
+      period: session.period,
+      complete: true,
+      pages: session.pages,
+      spanSeconds
+    }, "*");
+  }
+
+  function queueNextPage(session, oldestTime) {
+    if (session !== activeHistorySession) return;
+
+    if (pendingRequest && pendingRequest.session !== session) {
+      post("history-request-superseded");
+      return;
+    }
+
+    if (oldestTime <= session.targetStart + session.period) {
+      finishSession(session, true);
+      return;
+    }
+
+    if (session.pages >= session.maxPages) {
+      finishSession(session, false, "page-limit-reached");
+      return;
+    }
+
+    if (oldestTime >= session.cursorTime) {
+      finishSession(session, false, "history-page-did-not-move-backward");
+      return;
+    }
+
+    session.cursorTime = oldestTime - session.period;
+    pendingRequest = makePage(session);
+    post("history-page-next", {
+      page: session.pages + 1,
+      expectedPages: session.maxPages,
+      rows: session.rows.size
+    });
+    flushPendingRequest();
+  }
+
+  function acceptHistoryPage(item, payload, eventName) {
+    const session = item?.session;
+    if (!session || session !== activeHistorySession) {
+      flushPendingRequest();
+      return;
+    }
+
+    const rows = extractRows(payload);
+    session.pages += 1;
+
+    let pageOldest = null;
+    let pageNewest = null;
+    let added = 0;
+
+    for (const row of rows) {
+      const stamp = rowTimestamp(row);
+      if (stamp == null) continue;
+      if (!session.rows.has(stamp)) added += 1;
+      session.rows.set(stamp, row);
+      pageOldest = pageOldest == null ? stamp : Math.min(pageOldest, stamp);
+      pageNewest = pageNewest == null ? stamp : Math.max(pageNewest, stamp);
+      session.minTime = session.minTime == null ? stamp : Math.min(session.minTime, stamp);
+      session.maxTime = session.maxTime == null ? stamp : Math.max(session.maxTime, stamp);
+    }
+
+    post("history-page-received", {
+      event: eventName,
+      page: session.pages,
+      expectedPages: session.maxPages,
+      rows: rows.length,
+      totalRows: session.rows.size
+    });
+
+    if (pageOldest == null) {
+      finishSession(session, false, "empty-history-page");
+      flushPendingRequest();
+      return;
+    }
+
+    if (added === 0 && pageOldest >= session.cursorTime) {
+      finishSession(session, false, "duplicate-history-page");
+      flushPendingRequest();
+      return;
+    }
+
+    queueNextPage(session, pageOldest);
+  }
+
   function sendPayload(socket, item) {
     if (!isOpen(socket)) {
       pendingRequest = item;
@@ -132,7 +290,7 @@
       window.setTimeout(() => {
         if (!inFlight || inFlight.id !== id) return;
 
-        if (pendingRequest) {
+        if (pendingRequest && pendingRequest.session !== item.session) {
           inFlight = null;
           post("history-request-superseded");
           flushPendingRequest();
@@ -144,7 +302,11 @@
           flushPendingRequest();
         } else {
           inFlight = null;
-          post("history-timeout", { attempts: item.attempts + 1 });
+          if (item.session === activeHistorySession) {
+            finishSession(item.session, false, "history-response-timeout");
+          } else {
+            post("history-timeout", { attempts: item.attempts + 1 });
+          }
           flushPendingRequest();
         }
       }, 9000);
@@ -168,8 +330,7 @@
     const name = packet[0];
     const payload = packet[1];
 
-    // These events identify the authenticated data socket. Pocket Option
-    // sends some of them as Socket.IO binary events (451-...).
+    // These events identify the subscribed market-data socket.
     if (name === "updateStream" || name === "updateHistoryNewFast" ||
         name === "loadHistoryPeriodFast") {
       if (isOpen(socket)) {
@@ -178,30 +339,12 @@
       }
     }
 
-    // Only loadHistoryPeriod* completes the initial 24-hour history request.
-    // updateHistoryNewFast is an incremental stream event and must not cancel
-    // the pending request or be mistaken for the full history response.
     if (name === "loadHistoryPeriod" || name === "loadHistoryPeriodFast") {
       if (payload && typeof payload === "object") {
-        const rows = Array.isArray(payload) ? payload :
-          (payload.data || payload.candles || payload.history || []);
-        const requestContext = inFlight?.item?.payload || null;
+        const request = inFlight;
         inFlight = null;
-        post("history-response-received", {
-          event: name,
-          rows: Array.isArray(rows) ? rows.length : 0,
-          symbol: requestContext?.asset,
-          period: requestContext?.period,
-          keys: Object.keys(payload).slice(0, 10)
-        });
-        window.postMessage({
-          source: marker,
-          kind: "history",
-          history: payload,
-          symbol: requestContext?.asset,
-          period: requestContext?.period
-        }, "*");
-        flushPendingRequest();
+        if (request) acceptHistoryPage(request.item, payload, name);
+        else flushPendingRequest();
       }
     }
   }
@@ -210,31 +353,41 @@
     if (!request || typeof request.symbol !== "string") return;
 
     const period = Number(request.period);
-    const count = Number(request.count);
+    const targetCandles = Number(request.count);
     if (!Number.isFinite(period) || period <= 0 ||
-        !Number.isFinite(count) || count <= 0) {
+        !Number.isFinite(targetCandles) || targetCandles <= 0) {
       post("history-invalid-request");
       return;
     }
 
-    // Pocket Option's offset is a lookback window in SECONDS, not
-    // a candle count. The analyzer sends count = 86400 / period, so
-    // multiplying by period requests the full 24-hour window.
-    const lookbackSeconds = Math.ceil(count) * Math.floor(period);
-    const payload = {
-      asset: request.symbol,
-      index: Math.floor(Date.now() / 10),
-      offset: Math.min(Math.max(Math.floor(lookbackSeconds), Math.floor(period)), 86400),
+    const anchorTime = normalizeTimestamp(request.stamp, period);
+    const pageCandles = Math.min(PAGE_CANDLE_LIMIT, Math.ceil(targetCandles));
+    const pageOffset = pageCandles * Math.floor(period);
+
+    const session = {
+      id: ++historySessionSequence,
+      symbol: request.symbol,
       period: Math.floor(period),
-      time: normalizeTimestamp(request.stamp, period)
+      targetStart: anchorTime - 86400,
+      cursorTime: anchorTime,
+      pageOffset,
+      maxPages: Math.ceil(targetCandles / pageCandles) + 2,
+      pages: 0,
+      rows: new Map(),
+      minTime: null,
+      maxTime: null
     };
 
-    pendingRequest = { payload, attempts: 0 };
-    if (isOpen(activeSocket)) {
-      flushPendingRequest();
-    } else {
-      post("history-request-queued", { reason: "waiting-for-authenticated-stream" });
-    }
+    activeHistorySession = session;
+    pendingRequest = makePage(session);
+
+    post("history-session-started", {
+      targetCandles: Math.ceil(targetCandles),
+      pageCandles,
+      maxPages: session.maxPages
+    });
+
+    flushPendingRequest();
   }
 
   window.addEventListener("message", event => {
