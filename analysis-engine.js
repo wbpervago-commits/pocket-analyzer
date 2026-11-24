@@ -184,7 +184,8 @@
   }
 
   function backtest(candles, expirySeconds, timeframeSeconds) {
-    const step = Math.max(1, Math.ceil(expirySeconds / timeframeSeconds));
+    if (!Number.isFinite(expirySeconds) || !Number.isFinite(timeframeSeconds) || expirySeconds < timeframeSeconds || expirySeconds % timeframeSeconds !== 0) return { supported: false, reason: 'Для точного теста экспирация должна быть не короче таймфрейма и кратна ему.' };
+    const step = expirySeconds / timeframeSeconds;
     let signals = 0, wins = 0, losses = 0, ties = 0;
     const byDirection = { UP: { signals: 0, wins: 0 }, DOWN: { signals: 0, wins: 0 } };
     for (let i = 59; i + step < candles.length; i++) {
@@ -197,7 +198,7 @@
       const win = result.direction === 'UP' ? exit > entry : exit < entry;
       if (win) { wins++; byDirection[result.direction].wins++; } else losses++;
     }
-    return { signals, wins, losses, ties, winRate: wins + losses ? wins / (wins + losses) * 100 : null, byDirection, expiryBars: step };
+    return { supported: true, signals, wins, losses, ties, winRate: wins + losses ? wins / (wins + losses) * 100 : null, byDirection, expiryBars: step };
   }
 
   root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, atrSeries, adxSeries };
