@@ -37,7 +37,7 @@
       return;
     }
 
-    if (eventName === "loadHistoryPeriod") {
+    if (eventName === "loadHistoryPeriod" || eventName === "loadHistoryPeriodFast") {
       if (payload && typeof payload === "object") {
         post("history", { history: payload });
       }
