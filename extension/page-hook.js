@@ -172,8 +172,10 @@
       }
     }
 
-    if (name === "loadHistoryPeriod" || name === "loadHistoryPeriodFast" ||
-        name === "updateHistoryNew" || name === "updateHistoryNewFast") {
+    // Only loadHistoryPeriod* completes the initial 24-hour history request.
+    // updateHistoryNewFast is an incremental stream event and must not cancel
+    // the pending request or be mistaken for the full history response.
+    if (name === "loadHistoryPeriod" || name === "loadHistoryPeriodFast") {
       if (payload && typeof payload === "object") {
         const rows = Array.isArray(payload) ? payload :
           (payload.data || payload.candles || payload.history || []);
