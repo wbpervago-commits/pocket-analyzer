@@ -371,7 +371,7 @@
       const train = selected.filter(x=>x.entryIndex < (outcomes[splitAt]?.entryIndex ?? Infinity));
       const test = selected.filter(x=>x.entryIndex >= (outcomes[splitAt]?.entryIndex ?? Infinity));
       return { id:def.id, label:def.label, full:summarizeModel(selected), train:summarizeModel(train), test:summarizeModel(test),
-        status: train.length >= 20 && test.length >= 10 ? 'tested' : 'small-sample' };
+        status: train.length >= 50 && test.length >= 30 ? 'tested' : 'small-sample' };
     });
     const risk = {
       overall: streakStats(outcomes),
