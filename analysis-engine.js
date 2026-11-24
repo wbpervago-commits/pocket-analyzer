@@ -64,6 +64,18 @@
     return out;
   }
 
+  function stochasticSeries(candles, period = 14, smooth = 3) {
+    const k = Array(candles.length).fill(null), d = Array(candles.length).fill(null);
+    for (let i = period - 1; i < candles.length; i++) {
+      const window = candles.slice(i - period + 1, i + 1);
+      const high = Math.max(...window.map(c => c.high)), low = Math.min(...window.map(c => c.low));
+      k[i] = high === low ? 50 : 100 * (candles[i].close - low) / (high - low);
+      const values = k.slice(Math.max(0, i - smooth + 1), i + 1).filter(v => v != null);
+      if (values.length === smooth) d[i] = mean(values);
+    }
+    return { k, d };
+  }
+
   function atrSeries(candles, period = 14) {
     const tr = candles.map((c, i) => {
       if (!i) return c.high - c.low;
@@ -127,7 +139,7 @@
     if (n < 60) return { ready: false, reason: 'Для анализа нужно минимум 60 свечей', score: 0, direction: 'NONE', confidence: null };
     const closes = candles.map(c => c.close);
     const e9 = emaSeries(closes, 9), e21 = emaSeries(closes, 21), e50 = emaSeries(closes, 50);
-    const rs = rsiSeries(closes), mc = macdSeries(closes), bb = bandsSeries(closes), atr = atrSeries(candles), adx = adxSeries(candles);
+    const rs = rsiSeries(closes), mc = macdSeries(closes), bb = bandsSeries(closes), st = stochasticSeries(candles), atr = atrSeries(candles), adx = adxSeries(candles);
     const i = n - 1, c = candles[i], p = candles[i - 1];
     const pattern = candlePattern(c, p);
     let score = 0;
@@ -160,7 +172,7 @@
       else if (b.percentB < 0.45 && b.percentB > 0.1) add(-1, 'Цена в нижней части Bollinger');
     }
 
-    if (adx[i] != null && adx[i] >= 20) add(score > 0 ? 1 : score < 0 ? -1 : 0, 'ADX подтверждает наличие тренда');
+    if (st.k[i] != null && st.d[i] != null) {\n      if (st.k[i] > st.d[i] && st.k[i] >= 50 && st.k[i] <= 85) add(1, 'Stochastic подтверждает восходящий импульс');\n      else if (st.k[i] < st.d[i] && st.k[i] <= 50 && st.k[i] >= 15) add(-1, 'Stochastic подтверждает нисходящий импульс');\n    }\n    if (adx[i] != null && adx[i] >= 20) add(score > 0 ? 1 : score < 0 ? -1 : 0, 'ADX подтверждает наличие тренда');
     if (pattern.bullEngulf || pattern.bullPin) add(1, pattern.bullEngulf ? 'Бычье поглощение' : 'Бычий пин-бар');
     if (pattern.bearEngulf || pattern.bearPin) add(-1, pattern.bearEngulf ? 'Медвежье поглощение' : 'Медвежий пин-бар');
 
@@ -178,7 +190,7 @@
     const strength = Math.min(95, Math.round(50 + Math.abs(score) * 5));
     return {
       ready: true, direction, score, confidence: direction === 'NONE' ? null : strength,
-      indicators: { ema9: e9[i], ema21: e21[i], ema50: e50[i], rsi: rs[i], macd: mc.line[i], macdSignal: mc.signal[i], macdHist: mc.hist[i], bb: b, atr: atr[i], adx: adx[i], atrPct },
+      indicators: { ema9: e9[i], ema21: e21[i], ema50: e50[i], rsi: rs[i], macd: mc.line[i], macdSignal: mc.signal[i], macdHist: mc.hist[i], stochasticK: st.k[i], stochasticD: st.d[i], bb: b, atr: atr[i], adx: adx[i], atrPct },
       pattern, factors, reason: direction === 'NONE' ? 'Недостаточно согласованных факторов' : 'Направление подтверждено несколькими группами факторов'
     };
   }
@@ -201,5 +213,5 @@
     return { supported: true, signals, wins, losses, ties, winRate: wins + losses ? wins / (wins + losses) * 100 : null, byDirection, expiryBars: step };
   }
 
-  root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, atrSeries, adxSeries };
+  root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
 })(window);
