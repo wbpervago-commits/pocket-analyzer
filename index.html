@@ -9,7 +9,20 @@
     :root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--panel2:#172338;--line:#263650;--text:#eef4ff;--muted:#91a2bc;--blue:#4c8dff;--green:#20c997;--red:#ff647c;--yellow:#f4c15d}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#1c3152 0,transparent 55%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
     .wrap{max-width:1180px;margin:auto;padding:28px 22px 48px}.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:26px}.brand{display:flex;align-items:center;gap:13px}.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#438bff,#2455c7);display:grid;place-items:center;font-weight:800;font-size:20px;box-shadow:0 8px 24px #1c5bc455}.brand h1{font-size:20px;margin:0;letter-spacing:.2px}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}.status{font-size:12px;color:var(--yellow);border:1px solid #715d2e;background:#3a301b;padding:7px 11px;border-radius:20px}
-    .controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.field,.card{background:linear-gradient(180deg,#152238,#111b2d);border:1px solid var(--line);border-radius:16px}.field{padding:13px 15px}.field label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.field select{width:100%;background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:9px;padding:10px;font:inherit;outline:none}.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.card{padding:19px}.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.card h2{font-size:15px;margin:0;font-weight:650}.sub{color:var(--muted);font-size:12px}.quote{display:flex;align-items:flex-end;gap:12px;margin:20px 0 15px}.price{font-size:38px;line-height:1;font-weight:750;letter-spacing:-1px}.change{font-size:13px;color:var(--muted)}.chart{height:260px;border:1px solid #263650;border-radius:12px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 54px,#26365066 55px),repeating-linear-gradient(to right,transparent 0,transparent 79px,#26365044 80px);position:relative;overflow-x:auto;overflow-y:hidden}.chart canvas{width:100%;height:100%;display:block}.chart-note{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px;pointer-events:none}.signal{min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#0d1829;border:1px dashed #354967;border-radius:13px;padding:20px}.signal-mark{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#28364c;color:var(--yellow);font-size:25px;margin-bottom:12px}.signal strong{font-size:23px}.signal p{margin:7px 0 0;color:var(--muted);font-size:13px;max-width:320px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.stat{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.stat span{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:18px;margin-top:4px}.indicators{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.indicator{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.indicator span{display:block;color:var(--muted);font-size:11px}.indicator b{font-size:14px}.footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}.pill{padding:4px 8px;border-radius:20px;background:#26364d;color:#b9c9e1;font-size:11px}
+    .controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.field,.card{background:linear-gradient(180deg,#152238,#111b2d);border:1px solid var(--line);border-radius:16px}.field{padding:13px 15px}.field label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.field select{width:100%;background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:9px;padding:10px;font:inherit;outline:none}.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.card{padding:19px}.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.card h2{font-size:15px;margin:0;font-weight:650}.sub{color:var(--muted);font-size:12px}.quote{display:flex;align-items:flex-end;gap:12px;margin:20px 0 15px}.price{font-size:38px;line-height:1;font-weight:750;letter-spacing:-1px}.change{font-size:13px;color:var(--muted)}.chart{height:320px;border:1px solid #263650;border-radius:12px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 54px,#26365066 55px),repeating-linear-gradient(to right,transparent 0,transparent 79px,#26365044 80px);position:relative;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;touch-action:pan-x;cursor:grab;scrollbar-gutter:stable}
+    .chart.dragging{cursor:grabbing;user-select:none}
+    .chart::-webkit-scrollbar{height:11px}
+    .chart::-webkit-scrollbar-track{background:#0b1627;border-radius:10px}
+    .chart::-webkit-scrollbar-thumb{background:#405777;border:2px solid #0b1627;border-radius:10px}
+    .chart canvas{width:100%;height:100%;display:block}
+    .chart-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 9px}
+    .chart-toolbar button{min-width:34px;height:31px;padding:0 10px;background:#17263d;color:var(--text);border:1px solid #354a69;border-radius:8px;font:600 13px system-ui;cursor:pointer}
+    .chart-toolbar button:hover{background:#233955;border-color:#4c8dff}
+    .chart-toolbar button:active{transform:translateY(1px)}
+    .chart-toolbar button:disabled{opacity:.35;cursor:not-allowed}
+    .chart-zoom-label{font-size:11px;color:#b8c8df;min-width:82px;text-align:center}
+    .chart-hint{margin-left:auto;color:var(--muted);font-size:11px}
+    .chart-note{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px;pointer-events:none}.signal{min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#0d1829;border:1px dashed #354967;border-radius:13px;padding:20px}.signal-mark{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#28364c;color:var(--yellow);font-size:25px;margin-bottom:12px}.signal strong{font-size:23px}.signal p{margin:7px 0 0;color:var(--muted);font-size:13px;max-width:320px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.stat{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.stat span{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:18px;margin-top:4px}.indicators{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.indicator{background:#0e192a;border:1px solid #243650;border-radius:11px;padding:12px}.indicator span{display:block;color:var(--muted);font-size:11px}.indicator b{font-size:14px}.footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}.pill{padding:4px 8px;border-radius:20px;background:#26364d;color:#b9c9e1;font-size:11px}
     @media(max-width:760px){.controls{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.wrap{padding:20px 14px}.top{align-items:flex-start}.price{font-size:32px}}@media(max-width:420px){.controls{grid-template-columns:1fr 1fr}.field{padding:10px}.field select{font-size:13px}.stats{grid-template-columns:1fr}}
   </style>
 </head>
@@ -29,7 +42,15 @@
       <article class="card">
         <div class="card-head"><h2>Рыночная котировка</h2><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" id="selectedPair">EURUSD_otc · M1</span><span class="pill" id="historyStatus">История: ожидание</span></div></div>
         <div class="quote"><div class="price" id="price">—</div><div class="change" id="quoteState">Подключение к потоку Pocket Option…</div></div>
-        <div class="chart"><canvas id="candleChart" aria-label="График японских свечей"></canvas><div class="chart-note" id="chartMessage"><b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span></div></div>
+        <div class="chart-toolbar" aria-label="Управление графиком">
+          <button type="button" id="zoomOut" title="Уменьшить масштаб" aria-label="Уменьшить масштаб">−</button>
+          <span class="chart-zoom-label" id="chartZoomLabel">8 px / свеча</span>
+          <button type="button" id="zoomIn" title="Увеличить масштаб" aria-label="Увеличить масштаб">＋</button>
+          <button type="button" id="chartReset" title="Вернуть масштаб по умолчанию">Сброс</button>
+          <button type="button" id="chartLatest" title="Перейти к последним свечам">К последним</button>
+          <span class="chart-hint">Колесо — прокрутка · Ctrl + колесо — масштаб · перетаскивание — сдвиг</span>
+        </div>
+        <div class="chart" id="chartViewport"><canvas id="candleChart" aria-label="График японских свечей"></canvas><div class="chart-note" id="chartMessage"><b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span></div></div>
         <div class="indicators">
           <div class="indicator"><span>EMA 9 / EMA 21</span><b id="emaValue">Накопление данных</b></div>
           <div class="indicator"><span>RSI (14)</span><b id="rsiValue">—</b></div>
@@ -60,6 +81,8 @@
     const canvas=document.getElementById('candleChart');
     const ctx=canvas.getContext('2d');
     const candles=[];
+    const DEFAULT_CANDLE_SPACING=8,MIN_CANDLE_SPACING=3,MAX_CANDLE_SPACING=10;
+    let candleSpacing=DEFAULT_CANDLE_SPACING;
     let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null,historyRequestedKey=null;
 
     function setStatus(text,connected=false){
@@ -71,7 +94,9 @@
     function updateSelection(){
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
       candles.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;
+      candleSpacing=DEFAULT_CANDLE_SPACING;
       document.getElementById("historyStatus").textContent="История: загрузка…";
+      updateZoomLabel();
       drawChart();updateIndicators();
       priceEl.textContent='—';quoteState.textContent='Ожидание котировок выбранной пары';
       chartMessage.innerHTML='<b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span>';
@@ -154,10 +179,33 @@
       drawChart();updateIndicators();updateCountdown(stamp);
     }
 
-    function drawChart(){
-      const viewport=canvas.parentElement;
+    function updateZoomLabel(){
+      const label=document.getElementById('chartZoomLabel');
+      if(label)label.textContent=candleSpacing+' px / свеча';
+      const out=document.getElementById('zoomOut');
+      const inc=document.getElementById('zoomIn');
+      if(out)out.disabled=candleSpacing<=MIN_CANDLE_SPACING;
+      if(inc)inc.disabled=candleSpacing>=MAX_CANDLE_SPACING;
+    }
+
+    function setChartZoom(nextSpacing,anchorX){
+      const viewport=document.getElementById('chartViewport');
+      const next=Math.max(MIN_CANDLE_SPACING,Math.min(MAX_CANDLE_SPACING,nextSpacing));
+      if(next===candleSpacing)return;
+      const x=Number.isFinite(anchorX)?anchorX:viewport.clientWidth/2;
+      const oldSpacing=candleSpacing;
+      const anchorContent=viewport.scrollLeft+x;
+      candleSpacing=next;
+      drawChart(false);
+      viewport.scrollLeft=Math.max(0,anchorContent*(next/oldSpacing)-x);
+      updateZoomLabel();
+    }
+
+    function drawChart(preserveEnd=true){
+      const viewport=document.getElementById('chartViewport');
       const wasAtEnd=viewport.scrollWidth-viewport.clientWidth-viewport.scrollLeft<100;
-      canvas.style.width=Math.max(viewport.clientWidth,candles.length*5+90)+"px";
+      const contentWidth=Math.max(viewport.clientWidth,candles.length*candleSpacing+90);
+      canvas.style.width=contentWidth+'px';
       const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
       if(!rect.width||!rect.height)return;
       canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
@@ -174,7 +222,7 @@
       const left=12,right=76,top=14,bottom=30;
       const plotW=Math.max(20,w-left-right),plotH=Math.max(20,h-top-bottom);
       const y=v=>top+(max-v)/(max-min)*plotH;
-      const xStep=plotW/visible.length;
+      const xStep=Math.max(candleSpacing,plotW/visible.length);
 
       ctx.font='10px system-ui';ctx.textBaseline='middle';
       for(let i=0;i<=4;i++){
@@ -207,10 +255,56 @@
       const yy=y(latest.close);
       ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(76,141,255,.9)';
       ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right+4,yy);ctx.stroke();ctx.setLineDash([]);
-      if(wasAtEnd)viewport.scrollLeft=viewport.scrollWidth;
+      if(preserveEnd&&wasAtEnd)viewport.scrollLeft=viewport.scrollWidth;
     }
 
-    function ema(values,period){
+    const chartViewport=document.getElementById('chartViewport');
+    document.getElementById('zoomOut').addEventListener('click',()=>setChartZoom(candleSpacing-1));
+    document.getElementById('zoomIn').addEventListener('click',()=>setChartZoom(candleSpacing+1));
+    document.getElementById('chartReset').addEventListener('click',()=>{
+      setChartZoom(DEFAULT_CANDLE_SPACING,chartViewport.clientWidth);
+      chartViewport.scrollLeft=chartViewport.scrollWidth;
+    });
+    document.getElementById('chartLatest').addEventListener('click',()=>{
+      chartViewport.scrollLeft=chartViewport.scrollWidth;
+    });
+
+    chartViewport.addEventListener('wheel',event=>{
+      if(event.ctrlKey||event.metaKey){
+        event.preventDefault();
+        const rect=chartViewport.getBoundingClientRect();
+        setChartZoom(candleSpacing+(event.deltaY<0?1:-1),event.clientX-rect.left);
+        return;
+      }
+      event.preventDefault();
+      const delta=Math.abs(event.deltaX)>Math.abs(event.deltaY)?event.deltaX:event.deltaY;
+      chartViewport.scrollLeft+=delta;
+    },{passive:false});
+
+    let chartDrag=null;
+    chartViewport.addEventListener('pointerdown',event=>{
+      if(event.button!==0)return;
+      chartDrag={pointerId:event.pointerId,startX:event.clientX,startScroll:chartViewport.scrollLeft,moved:false};
+      chartViewport.setPointerCapture(event.pointerId);
+    });
+    chartViewport.addEventListener('pointermove',event=>{
+      if(!chartDrag||event.pointerId!==chartDrag.pointerId)return;
+      const dx=event.clientX-chartDrag.startX;
+      if(Math.abs(dx)>3)chartDrag.moved=true;
+      if(chartDrag.moved)chartViewport.scrollLeft=chartDrag.startScroll-dx;
+    });
+    const endChartDrag=event=>{
+      if(chartDrag&&event.pointerId===chartDrag.pointerId){
+        chartDrag=null;
+        chartViewport.classList.remove('dragging');
+      }
+    };
+    chartViewport.addEventListener('pointerup',endChartDrag);
+    chartViewport.addEventListener('pointercancel',endChartDrag);
+    chartViewport.addEventListener('gotpointercapture',()=>chartViewport.classList.add('dragging'));
+    updateZoomLabel();
+
+        function ema(values,period){
       if(values.length<period)return null;
       const k=2/(period+1);let result=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
       for(let i=period;i<values.length;i++)result=values[i]*k+result*(1-k);
@@ -244,7 +338,7 @@
       const period=Number(tf.value),remaining=period-(stamp%period);
       document.getElementById('countdown').textContent=remaining+' с';
     }
-    window.addEventListener('resize',drawChart);
+    window.addEventListener('resize',()=>drawChart(false));
     setStatus('Ожидание расширения Chrome');
     quoteState.textContent='Откройте Pocket Option в соседней вкладке. Расширение передаст котировки сюда.';
     window.addEventListener('message',event=>{
