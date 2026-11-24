@@ -20,10 +20,14 @@
         const statusEl = document.getElementById("historyStatus");
         const d = message.details || {};
         const labels = {
-          "socket-not-ready": "История: сокет не готов",
-          "send-failed": "История: ошибка отправки",
-          "history-hook-installed": "История: перехватчик установлен",
-          "history-request-sent": "История: запрос отправлен, ждём ответ",
+          "socket-not-ready": "История: ожидаем подключение WebSocket",
+          "send-failed": "История: ошибка отправки запроса",
+          "history-hook-installed": "История: перехватчик активен",
+          "history-request-queued": "История: запрос сохранён · ждём поток Pocket Option",
+          "history-request-sent": "История: запрос отправлен · ждём ответ",
+          "history-request-retry": "История: повторный запрос · ждём ответ",
+          "history-timeout": "История: Pocket Option не ответил на запрос",
+          "history-invalid-request": "История: некорректные параметры запроса",
           "history-response-received": "Ответ Pocket Option: " + (d.event || "событие") + " · свечей: " + (d.rows ?? "?")
         };
         if (statusEl) statusEl.textContent = labels[message.status] || ("История: " + message.status);
