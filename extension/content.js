@@ -28,6 +28,8 @@
           "history-request-retry": "История: повторный запрос · ждём ответ",
           "history-timeout": "История: Pocket Option не ответил на запрос",
           "history-invalid-request": "История: некорректные параметры запроса",
+          "pocket-tab-not-found": "История: откройте вкладку Pocket Option",
+          "pocket-tab-bridge-unavailable": "История: расширение не подключено к вкладке Pocket Option",
           "history-response-received": "Ответ Pocket Option: " + (d.event || "событие") + " · свечей: " + (d.rows ?? "?")
         };
         if (statusEl) statusEl.textContent = labels[message.status] || ("История: " + message.status);
