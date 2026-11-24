@@ -116,21 +116,48 @@
       const w=rect.width,h=rect.height;
       ctx.clearRect(0,0,w,h);
       if(!candles.length)return;
-      const visible=candles.slice(-48);
+
+      const visible=candles.slice(-42);
       let min=Math.min(...visible.map(c=>c.low)),max=Math.max(...visible.map(c=>c.high));
-      if(max===min){max+=0.0001;min-=0.0001;}
-      const pad=18,top=16,bottom=20,plotH=h-top-bottom,plotW=w-pad*2;
+      const spread=max-min||Math.max(Math.abs(max)*0.00002,0.0001);
+      min-=spread*.12;max+=spread*.12;
+      const decimals=pair.value.includes('JPY')?3:5;
+      const left=12,right=76,top=14,bottom=30;
+      const plotW=Math.max(20,w-left-right),plotH=Math.max(20,h-top-bottom);
       const y=v=>top+(max-v)/(max-min)*plotH;
-      ctx.strokeStyle='rgba(145,162,188,.13)';ctx.lineWidth=1;
-      for(let i=0;i<5;i++){const yy=top+i*plotH/4;ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(w-pad,yy);ctx.stroke();}
-      const step=plotW/visible.length,candleW=Math.max(3,Math.min(12,step*.58));
+      const xStep=plotW/visible.length;
+
+      ctx.font='10px system-ui';ctx.textBaseline='middle';
+      for(let i=0;i<=4;i++){
+        const value=max-(max-min)*i/4,yy=top+plotH*i/4;
+        ctx.strokeStyle='rgba(145,162,188,.24)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right+4,yy);ctx.stroke();
+        ctx.fillStyle='#aebdd2';ctx.textAlign='left';
+        ctx.fillText(value.toFixed(decimals),w-right+10,yy);
+      }
+
+      const candleW=Math.max(4,Math.min(13,xStep*.72));
       visible.forEach((c,i)=>{
-        const x=pad+i*step+step/2,up=c.close>=c.open,color=up?'#20c997':'#ff647c';
-        ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.4;
+        const x=left+i*xStep+xStep/2,up=c.close>=c.open,color=up?'#20d6a0':'#ff647c';
+        ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2;
         ctx.beginPath();ctx.moveTo(x,y(c.high));ctx.lineTo(x,y(c.low));ctx.stroke();
-        const bodyTop=Math.min(y(c.open),y(c.close)),bodyH=Math.max(1.5,Math.abs(y(c.open)-y(c.close)));
+        const bodyTop=Math.min(y(c.open),y(c.close));
+        const bodyH=Math.max(2.5,Math.abs(y(c.open)-y(c.close)));
         ctx.fillRect(x-candleW/2,bodyTop,candleW,bodyH);
       });
+
+      ctx.fillStyle='#aebdd2';ctx.font='10px system-ui';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      const labels=[0,Math.floor((visible.length-1)/2),visible.length-1];
+      labels.forEach(i=>{
+        const d=new Date(visible[i].time*1000);
+        const label=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        ctx.fillText(label,left+i*xStep+xStep/2,h-8);
+      });
+
+      const latest=visible[visible.length-1];
+      const yy=y(latest.close);
+      ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(76,141,255,.9)';
+      ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right+4,yy);ctx.stroke();ctx.setLineDash([]);
     }
 
     function ema(values,period){
