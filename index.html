@@ -17,7 +17,7 @@
   <main class="wrap">
     <header class="top">
       <div class="brand"><div class="logo">P</div><div><h1>Pocket Analyzer</h1><p>Аналитика рынка · только сигналы, без автоторговли</p></div></div>
-      <div class="status" id="connection">● Источник данных не подключён</div>
+      <div class="status" id="connection">● Проверка подключения…</div>
     </header>
     <section class="controls" aria-label="Настройки анализа">
       <div class="field"><label for="pair">Валютная пара</label><select id="pair"><option>EURUSD_otc</option><option>GBPUSD_otc</option><option>USDJPY_otc</option><option>AUDCAD_otc</option><option>EURGBP_otc</option></select></div>
@@ -28,8 +28,8 @@
     <section class="grid">
       <article class="card">
         <div class="card-head"><h2>Рыночная котировка</h2><span class="pill" id="selectedPair">EURUSD_otc · M1</span></div>
-        <div class="quote"><div class="price">—</div><div class="change">Ожидание потока котировок</div></div>
-        <div class="chart"><div><b>График появится после подключения данных</b><br><span class="sub">Здесь будут свечи и уровни цены</span></div></div>
+        <div class="quote"><div class="price" id="price">—</div><div class="change" id="quoteState">Подключение к потоку Pocket Option…</div></div>
+        <div class="chart"><div id="chartMessage"><b>Ожидание первых котировок</b><br><span class="sub">После получения данных подключим свечи и индикаторы</span></div></div>
         <div class="indicators">
           <div class="indicator"><span>EMA / тренд</span><b>Ожидание данных</b></div>
           <div class="indicator"><span>RSI</span><b>—</b></div>
@@ -53,8 +53,63 @@
   </main>
   <script>
     const pair=document.getElementById('pair'),tf=document.getElementById('timeframe');
-    function updateSelection(){document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;}
+    const connection=document.getElementById('connection');
+    const priceEl=document.getElementById('price');
+    const quoteState=document.getElementById('quoteState');
+    const chartMessage=document.getElementById('chartMessage');
+    let socket, lastQuoteAt=0, socketReady=false;
+    function updateSelection(){
+      document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
+      if(lastQuoteAt) quoteState.textContent='Последняя котировка: '+new Date(lastQuoteAt).toLocaleTimeString();
+    }
     pair.addEventListener('change',updateSelection);tf.addEventListener('change',updateSelection);
+    function setStatus(text,connected=false){
+      connection.textContent=(connected?'● ':'● ')+text;
+      connection.style.color=connected?'#20c997':'#f4c15d';
+      connection.style.borderColor=connected?'#236c59':'#715d2e';
+      connection.style.background=connected?'#17372f':'#3a301b';
+    }
+    function decodeQuote(value){
+      if(Array.isArray(value) && value.length && Array.isArray(value[0])) value=value[0];
+      if(!Array.isArray(value) || value.length<3) return;
+      const [symbol,stamp,price]=value;
+      if(typeof symbol!=='string' || typeof stamp!=='number' || typeof price!=='number') return;
+      if(symbol!==pair.value) return;
+      lastQuoteAt=stamp*1000;
+      priceEl.textContent=price.toFixed(5);
+      quoteState.textContent='Поток получен · '+new Date(lastQuoteAt).toLocaleTimeString();
+      chartMessage.innerHTML='<b>Котировки поступают</b><br><span class="sub">Следующий этап — построение свечей</span>';
+      setStatus('Поток котировок активен',true);
+    }
+    async function handleBinary(data){
+      try{
+        const buffer=data instanceof Blob?await data.arrayBuffer():data;
+        const text=new TextDecoder().decode(buffer);
+        decodeQuote(JSON.parse(text));
+      }catch(e){ /* неизвестные бинарные сообщения пропускаем */ }
+    }
+    function connect(){
+      try{
+        socket=new WebSocket('wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket');
+        socket.binaryType='arraybuffer';
+        socket.onopen=()=>setStatus('WebSocket открыт, ожидание протокола');
+        socket.onmessage=async(event)=>{
+          if(typeof event.data!=='string'){await handleBinary(event.data);return;}
+          const msg=event.data;
+          if(msg.startsWith('0')){socket.send('40');return;}
+          if(msg==='2'){socket.send('3');return;}
+          if(msg.startsWith('40')){socketReady=true;setStatus('Соединение Socket.IO установлено, ждём котировки');return;}
+          if(msg.startsWith('451-')){return;}
+          if(msg.startsWith('42')){
+            try{const packet=JSON.parse(msg.slice(2));if(packet[0]==='updateStream') decodeQuote(packet[1]);}catch(e){}
+          }
+        };
+        socket.onerror=()=>setStatus('Сервер не разрешил подключение из этой вкладки');
+        socket.onclose=()=>{socketReady=false;setStatus('Соединение закрыто — проверьте доступность потока');};
+      }catch(e){setStatus('Не удалось открыть WebSocket');}
+    }
+    connect();
+    window.addEventListener('beforeunload',()=>{if(socket)socket.close();});
   </script>
 </body>
 </html>
