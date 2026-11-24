@@ -118,7 +118,7 @@
     construct(target, args, newTarget) {
       const ws = Reflect.construct(target, args, newTarget);
       const socketUrl = String(args[0] || "");
-      const isMarketSocket = /(?:\\.po\\.market|pocketoption\\.com)/i.test(socketUrl);
+      const isMarketSocket = /(?:\.po\.market|pocketoption\.com)/i.test(socketUrl);
       if (isMarketSocket) {
         sockets.add(ws);
         latestSocket = ws;
