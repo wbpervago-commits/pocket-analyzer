@@ -71,3 +71,31 @@ function flatCandles(count) {
 }
 
 console.log('PASS: chart-pattern detection, no-lookahead guard, loss-streak metrics, deterministic block bootstrap');
+
+{
+  const synthetic=[];
+  let previous=1.1000;
+  for(let i=0;i<620;i++){
+    const close=1.1000+0.00035*Math.sin(i/9)+0.00010*Math.sin(i/2.3);
+    const open=previous;
+    const spread=0.00007+0.00002*(1+Math.sin(i/5));
+    synthetic.push({time:i*60,open,high:Math.max(open,close)+spread,low:Math.min(open,close)-spread,close});
+    previous=close;
+  }
+  const backtest=engine.backtest(synthetic,60,60,0.9);
+  assert.equal(backtest.supported,true);
+  assert.ok(Math.abs(backtest.breakEvenRate-100/1.9)<1e-10);
+  assert.ok(backtest.models.some(x=>x.id==='pattern_all'),'Combined chart-pattern model should be included');
+  assert.ok(backtest.models.some(x=>x.source==='chart-pattern'),'Chart-pattern models should be marked separately');
+}
+
+{
+  const fs=require('node:fs');
+  const path=require('node:path');
+  const vm=require('node:vm');
+  const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+  const inline=[...html.matchAll(/<script\\b(?!(?:[^>]*\\bsrc\\s*=))[^>]*>([\\s\\S]*?)<\\/script>/gi)];
+  assert.ok(inline.length>=1,'index.html should contain the inline app script');
+  inline.forEach((match,i)=>new vm.Script(match[1],{filename:'index.html:inline-'+i}));
+}
+
