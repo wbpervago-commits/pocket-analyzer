@@ -46,8 +46,12 @@
     if (Array.isArray(value)) {
       if (value.length >= 3 && value[0] === symbol &&
           typeof value[1] === "number" && Number.isFinite(value[1]) &&
-          typeof value[2] === "number" && Number.isFinite(value[2])) {
-        return true;
+          typeof value[2] === "number" && Number.isFinite(value[2]) &&
+          value[2] > 0) {
+        let stamp = value[1];
+        if (stamp > 1e12) stamp /= 1000;
+        return stamp >= Date.UTC(2000, 0, 1) / 1000 &&
+          stamp <= Date.now() / 1000 + 3600;
       }
       return value.some(item => containsMatchingQuote(item, symbol));
     }
@@ -208,8 +212,11 @@
       value = row.time ?? row.timestamp ?? row.t;
     }
     let stamp = Number(value);
-    if (!Number.isFinite(stamp) || stamp <= 0) return null;
+    if (!Number.isFinite(stamp)) return null;
     if (stamp > 1e12) stamp = Math.floor(stamp / 1000);
+    const minimumTimestamp = Date.UTC(2000, 0, 1) / 1000;
+    const maximumTimestamp = Date.now() / 1000 + 3600;
+    if (stamp < minimumTimestamp || stamp > maximumTimestamp) return null;
     return Math.floor(stamp);
   }
 
