@@ -8,6 +8,32 @@
   const finite = Number.isFinite;
   const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
 
+  // Pocket Option live updateStream timestamps can be expressed in the
+  // broker's UTC+N wall-clock epoch. Correct only a near-whole-hour future
+  // offset (1–3 hours, within five minutes); leave normal/invalid times alone.
+  function normalizeLiveQuoteTimestamp(value, nowSeconds = Date.now() / 1000) {
+    let stamp = Number(value);
+    if (!finite(stamp)) return null;
+    if (stamp > 1e12) stamp /= 1000;
+
+    const now = Number(nowSeconds);
+    if (!finite(now)) return stamp;
+
+    const aheadSeconds = stamp - now;
+    if (aheadSeconds > 3600 && aheadSeconds <= 4 * 3600) {
+      const offsetHours = Math.round(aheadSeconds / 3600);
+      const offsetSeconds = offsetHours * 3600;
+      if (
+        offsetHours >= 1 &&
+        offsetHours <= 3 &&
+        Math.abs(aheadSeconds - offsetSeconds) <= 300
+      ) {
+        stamp -= offsetSeconds;
+      }
+    }
+    return stamp;
+  }
+
   function emaSeries(values, period) {
     const out = Array(values.length).fill(null);
     if (values.length < period) return out;
@@ -813,5 +839,5 @@
     return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, risk, models, modelSplitIndex: splitAt, expiryBars: step };
   }
 
-  root.PocketAnalysis = { evaluate, backtest, detectChartPatterns, streakStats, estimateStreakRisk, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
+  root.PocketAnalysis = { evaluate, backtest, detectChartPatterns, streakStats, estimateStreakRisk, normalizeLiveQuoteTimestamp, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
 })(window);
