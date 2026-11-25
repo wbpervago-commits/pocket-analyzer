@@ -301,7 +301,7 @@
       const [symbol,rawStamp,price]=value;
       if(typeof symbol!=='string'||typeof rawStamp!=='number'||typeof price!=='number'||!Number.isFinite(price)||price<=0)return;
       if(symbol!==pair.value)return;
-      const stamp=normalizeEpochSeconds(rawStamp);
+      const stamp=window.PocketAnalysis.normalizeLiveQuoteTimestamp(rawStamp);
       if(stamp===null||!isValidCandleTime(stamp))return;
       lastQuoteAt=stamp*1000;lastPrice=price;
       const decimals=symbol.includes('JPY')?3:5;
