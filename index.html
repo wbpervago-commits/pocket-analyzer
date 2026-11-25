@@ -40,7 +40,7 @@
     </section>
     <section class="grid">
       <article class="card">
-        <div class="card-head"><h2>Рыночная котировка</h2><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" id="selectedPair">EURUSD_otc · M1</span><span class="pill" id="historyStatus">Архив: авто-загрузка отключена</span></div></div>
+        <div class="card-head"><h2>Рыночная котировка</h2><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" id="selectedPair">EURUSD_otc · M1</span><span class="pill" id="historyStatus">Архив: запрос последних 2000 свечей</span></div></div>
         <div class="quote"><div class="price" id="price">—</div><div class="change" id="quoteState">Подключение к потоку Pocket Option…</div></div>
         <div class="chart-toolbar" aria-label="Управление графиком">
           <button type="button" id="zoomOut" title="Уменьшить масштаб" aria-label="Уменьшить масштаб">−</button>
@@ -114,7 +114,7 @@
     }
     let candleSpacing=DEFAULT_CANDLE_SPACING;
     let chartViewStart=0,chartFollowLatest=true;
-    let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null;
+    let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null,historyRequestedKey=null;
     let activeSignal=null,signalCount=0;
     const signalLog=[];
 
@@ -278,12 +278,12 @@
     }
     function updateSelection(){
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
-      candles.length=0;historyArchive.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;activeSignal=null;signalCount=0;signalLog.length=0;
+      candles.length=0;historyArchive.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;activeSignal=null;signalCount=0;signalLog.length=0;
       document.getElementById('signalCount').textContent='0';
       renderSignal('WAIT',null,'Ожидаем данные и окно формирования сигнала.',[]);updateBacktest();
       candleSpacing=DEFAULT_CANDLE_SPACING;
       chartViewStart=0;chartFollowLatest=true;
-      document.getElementById("historyStatus").textContent="Архив: авто-загрузка отключена";
+      document.getElementById("historyStatus").textContent="Архив: запрос последних 2000 свечей";
       drawChart();updateIndicators();renderTimingStudy();
       priceEl.textContent='—';quoteState.textContent='Ожидание котировок выбранной пары';
       chartMessage.innerHTML='<b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span>';
@@ -309,6 +309,17 @@
       quoteState.textContent='Поток получен · '+new Date(lastQuoteAt).toLocaleTimeString();
       setStatus('Поток котировок активен',true);
       addTick(stamp,price);
+      requestHistoryIfNeeded(stamp);
+    }
+
+    function requestHistoryIfNeeded(stamp){
+      const key=pair.value+":"+tf.value;
+      if(historyRequestedKey===key)return;
+      historyRequestedKey=key;
+      document.getElementById("historyStatus").textContent="История: запрос последних "+DISPLAY_CANDLE_LIMIT+" свечей…";
+      chartMessage.style.display="grid";
+      chartMessage.innerHTML="<b>Загрузка последних "+DISPLAY_CANDLE_LIMIT+" свечей</b><br><span class=\"sub\">Получаем ограниченный архив Pocket Option</span>";
+      window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"history-request",symbol:pair.value,period:Number(tf.value),count:DISPLAY_CANDLE_LIMIT,stamp},"*");
     }
 
     function loadHistoricalCandles(payload){
@@ -725,6 +736,15 @@
       if(event.data.kind==='quote')decodeQuote(event.data.quote);
       if(event.data.kind==='history')loadHistoricalCandles(event.data.history);
       if(event.data.kind==='history-status'){
+        const details=event.data.details||{};
+        const statusLabels={
+          "history-session-started":"История: загрузка "+(details.targetCandles||DISPLAY_CANDLE_LIMIT)+" свечей · подготовка пакетов",
+          "history-page-received":"История: пакет "+(details.page||"?")+"/"+(details.expectedPages||"?")+" · получено "+(details.totalRows||details.rows||"?")+" свечей",
+          "history-page-next":"История: загружаем следующий пакет · уже "+(details.rows||"?")+" свечей",
+          "history-complete":"Архив: "+(details.rows||"?")+" свечей · готово",
+          "history-incomplete":"Архив: получено "+(details.rows||0)+" свечей · загрузка неполная"
+        };
+        if(statusLabels[event.data.status])document.getElementById("historyStatus").textContent=statusLabels[event.data.status];
         if(event.data.status==="socket-not-ready"||event.data.status==="send-failed"){
           document.getElementById("historyStatus").textContent="История: ошибка запроса";
         }
