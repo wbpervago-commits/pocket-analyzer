@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pocket Analyzer History Experiment",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Передаёт только исторические свечи Pocket Option; живые котировки остаются за Quote Bridge 1.0.0.",
   "minimum_chrome_version": "111",
   "permissions": [
