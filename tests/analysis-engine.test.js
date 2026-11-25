@@ -94,7 +94,7 @@ console.log('PASS: chart-pattern detection, no-lookahead guard, loss-streak metr
   const path=require('node:path');
   const vm=require('node:vm');
   const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
-  const inline=[...html.matchAll(/<script\\b(?!(?:[^>]*\\bsrc\\s*=))[^>]*>([\\s\\S]*?)<\\/script>/gi)];
+  const inline=[...html.matchAll(/<script\b(?!(?:[^>]*\bsrc\s*=))[^>]*>([\s\S]*?)<\/script>/gi)];
   assert.ok(inline.length>=1,'index.html should contain the inline app script');
   inline.forEach((match,i)=>new vm.Script(match[1],{filename:'index.html:inline-'+i}));
 }
