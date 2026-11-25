@@ -362,6 +362,16 @@
       else g.losses++;
     };
     for (let i = 59; i + step < candles.length; i++) {
+      // Do not simulate a fixed-minute expiry across missing historical candles.
+      let continuousWindow = true;
+      for (let j = i; j < i + step; j++) {
+        if (Number(candles[j + 1].time) - Number(candles[j].time) !== timeframeSeconds) {
+          continuousWindow = false;
+          break;
+        }
+      }
+      if (!continuousWindow) continue;
+
       const result = evaluate(candles, timeframeSeconds, prepared, i);
       if (result.direction === 'NONE') continue;
       const entry = candles[i + 1].open, exit = candles[i + step].close;

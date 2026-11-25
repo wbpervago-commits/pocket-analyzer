@@ -91,7 +91,26 @@
     // Full historical archive; the chart/live engine uses only the latest 2,000 bars.
     const historyArchive=[];
     const DISPLAY_CANDLE_LIMIT=2000;
+    const MIN_VALID_CANDLE_TIMESTAMP=Date.UTC(2000,0,1)/1000;
     const DEFAULT_CANDLE_SPACING=8,MIN_CANDLE_SPACING=3.5,MAX_CANDLE_SPACING=18;
+
+    function normalizeEpochSeconds(value){
+      let stamp=Number(value);
+      if(!Number.isFinite(stamp))return null;
+      if(stamp>1e12)stamp/=1000;
+      return stamp;
+    }
+    function isValidCandleTime(value){
+      const stamp=normalizeEpochSeconds(value);
+      return stamp!==null&&stamp>=MIN_VALID_CANDLE_TIMESTAMP&&stamp<=Date.now()/1000+3600;
+    }
+    function isValidCandle(c){
+      return !!c&&isValidCandleTime(c.time)&&
+        [c.open,c.high,c.low,c.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)&&
+        Number(c.high)>=Math.max(Number(c.open),Number(c.close))&&
+        Number(c.low)<=Math.min(Number(c.open),Number(c.close))&&
+        Number(c.high)>=Number(c.low);
+    }
     let candleSpacing=DEFAULT_CANDLE_SPACING;
     let chartViewStart=0,chartFollowLatest=true;
     let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null,historyRequestedKey=null;
@@ -125,9 +144,11 @@
     function decodeQuote(value){
       if(Array.isArray(value)&&value.length&&Array.isArray(value[0])) value=value[0];
       if(!Array.isArray(value)||value.length<3)return;
-      const [symbol,stamp,price]=value;
-      if(typeof symbol!=='string'||typeof stamp!=='number'||typeof price!=='number'||!Number.isFinite(price))return;
+      const [symbol,rawStamp,price]=value;
+      if(typeof symbol!=='string'||typeof rawStamp!=='number'||typeof price!=='number'||!Number.isFinite(price)||price<=0)return;
       if(symbol!==pair.value)return;
+      const stamp=normalizeEpochSeconds(rawStamp);
+      if(stamp===null||!isValidCandleTime(stamp))return;
       lastQuoteAt=stamp*1000;lastPrice=price;
       const decimals=symbol.includes('JPY')?3:5;
       priceEl.textContent=price.toFixed(decimals);
@@ -153,27 +174,28 @@
       const rows=Array.isArray(payload)?payload:(payload?.data||payload?.candles||payload?.history||[]);
       if(!Array.isArray(rows)||!rows.length)return;
       const historical=[];
+      let rejectedRows=0;
       for(const row of rows){
         let c;
         if(Array.isArray(row)&&row.length>=5){
-          let time=Number(row[0]);
-          if(time>1e12)time=Math.floor(time/1000);
+          let time=normalizeEpochSeconds(row[0]);
           c={time,open:Number(row[1]),close:Number(row[2]),high:Number(row[3]),low:Number(row[4])};
         }else if(row&&typeof row==="object"){
-          let time=Number(row.time??row.timestamp??row.t);
-          if(time>1e12)time=Math.floor(time/1000);
+          let time=normalizeEpochSeconds(row.time??row.timestamp??row.t);
           c={time,open:Number(row.open??row.o),high:Number(row.high??row.h),low:Number(row.low??row.l),close:Number(row.close??row.c)};
         }
-        if(c&&Number.isFinite(c.time)&&Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low)&&Number.isFinite(c.close))historical.push(c);
+        if(isValidCandle(c))historical.push(c);
+        else rejectedRows++;
       }
-      if(!historical.length)return;
-      const byTime=new Map(historyArchive.map(c=>[c.time,c]));
+      const byTime=new Map(historyArchive.filter(isValidCandle).map(c=>[c.time,c]));
       for(const c of historical)byTime.set(c.time,c);
       for(const live of candles){
+        if(!isValidCandle(live))continue;
         const old=byTime.get(live.time);
         if(old)byTime.set(live.time,{time:live.time,open:old.open,high:Math.max(old.high,live.high),low:Math.min(old.low,live.low),close:live.close});
         else byTime.set(live.time,live);
       }
+      if(!byTime.size)return;
       const merged=[...byTime.values()].sort((a,b)=>a.time-b.time);
       historyArchive.length=0;
       for(const candle of merged)historyArchive.push(candle);
@@ -184,7 +206,7 @@
       chartMessage.style.display="none";
       const oldest=historyArchive[0]?.time||0,newest=historyArchive[historyArchive.length-1]?.time||0;
       const spanHours=oldest&&newest?Math.max(0,(newest-oldest)/3600):0;
-      document.getElementById("historyStatus").textContent="Архив: "+historyArchive.length+" свечей · "+spanHours.toFixed(1)+" ч · график: "+candles.length;
+      document.getElementById("historyStatus").textContent="Архив: "+historyArchive.length+" свечей · "+spanHours.toFixed(1)+" ч · график: "+candles.length+(rejectedRows?" · исключено некорректных: "+rejectedRows:"");
       drawChart();updateIndicators();updateBacktest();
     }
 
