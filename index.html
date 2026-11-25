@@ -40,7 +40,7 @@
     </section>
     <section class="grid">
       <article class="card">
-        <div class="card-head"><h2>Рыночная котировка</h2><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" id="selectedPair">EURUSD_otc · M1</span><span class="pill" id="historyStatus">История: ожидание</span></div></div>
+        <div class="card-head"><h2>Рыночная котировка</h2><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" id="selectedPair">EURUSD_otc · M1</span><span class="pill" id="historyStatus">Архив: авто-загрузка отключена</span></div></div>
         <div class="quote"><div class="price" id="price">—</div><div class="change" id="quoteState">Подключение к потоку Pocket Option…</div></div>
         <div class="chart-toolbar" aria-label="Управление графиком">
           <button type="button" id="zoomOut" title="Уменьшить масштаб" aria-label="Уменьшить масштаб">−</button>
@@ -72,7 +72,7 @@
           <div class="stat"><span>Сигналов в сессии</span><b id="signalCount">0</b></div>
         </div>
         <div class="analysis-details"><h3>Факторы решения</h3><ul id="signalFactors"><li>Ожидание данных</li></ul></div>
-        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9" selected>90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><div id="btModels" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Сравнение торговых моделей: ожидание истории</div></div><div id="btRisk" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Риск догонов: ожидание истории</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Расчёт по загруженным свечам. Это тест на истории, не гарантия результата.</p></div>
+        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9" selected>90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><div id="btModels" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Сравнение торговых моделей: ожидание истории</div></div><div id="btRisk" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Риск догонов: ожидание истории</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Автозагрузка 90-дневного архива отключена. Бэктест использует только доступные анализатору свечи.</p></div>
         <div class="backtest" id="timingStudy"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><h3 style="margin:0;font-size:12px">Сравнение времени сигнала · live</h3><button type="button" id="exportTimingStudy" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт JSON</button></div><div style="display:grid;grid-template-columns:1fr;gap:8px"><div><b style="font-size:12px">За 7 секунд</b><div class="sub" id="timing7Summary">Ожидание наблюдений</div></div><div style="border-top:1px solid #263650;padding-top:7px"><b style="font-size:12px">За 3 секунды</b><div class="sub" id="timing3Summary">Ожидание наблюдений</div></div></div><p class="sub" id="timingStudyNote" style="margin:8px 0 0">Параллельная запись начинается после подключения живых котировок. Архив OHLC не используется для выдумывания внутриминутных цен.</p></div>
         <p class="sub" style="margin-top:10px">* Сила — внутренняя оценка согласованности факторов, не статистическая вероятность выигрыша.</p>
       </aside>
@@ -114,7 +114,7 @@
     }
     let candleSpacing=DEFAULT_CANDLE_SPACING;
     let chartViewStart=0,chartFollowLatest=true;
-    let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null,historyRequestedKey=null;
+    let lastQuoteAt=0,lastBucket=null,lastPrice=null,lastSignalBucket=null;
     let activeSignal=null,signalCount=0;
     const signalLog=[];
 
@@ -278,12 +278,12 @@
     }
     function updateSelection(){
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
-      candles.length=0;historyArchive.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;activeSignal=null;signalCount=0;signalLog.length=0;
+      candles.length=0;historyArchive.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;activeSignal=null;signalCount=0;signalLog.length=0;
       document.getElementById('signalCount').textContent='0';
       renderSignal('WAIT',null,'Ожидаем данные и окно формирования сигнала.',[]);updateBacktest();
       candleSpacing=DEFAULT_CANDLE_SPACING;
       chartViewStart=0;chartFollowLatest=true;
-      document.getElementById("historyStatus").textContent="История: загрузка…";
+      document.getElementById("historyStatus").textContent="Архив: авто-загрузка отключена";
       drawChart();updateIndicators();renderTimingStudy();
       priceEl.textContent='—';quoteState.textContent='Ожидание котировок выбранной пары';
       chartMessage.innerHTML='<b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span>';
@@ -309,19 +309,6 @@
       quoteState.textContent='Поток получен · '+new Date(lastQuoteAt).toLocaleTimeString();
       setStatus('Поток котировок активен',true);
       addTick(stamp,price);
-      requestHistoryIfNeeded(stamp);
-    }
-
-    function requestHistoryIfNeeded(stamp){
-      const key=pair.value+":"+tf.value;
-      if(historyRequestedKey===key)return;
-      historyRequestedKey=key;
-      const period=Number(tf.value);
-      const count=Math.ceil((90*86400)/period);
-      document.getElementById("historyStatus").textContent="История: запрос…";
-      chartMessage.style.display="grid";
-      chartMessage.innerHTML="<b>Загрузка истории за 90 дней</b><br><span class=\"sub\">Получаем исторические свечи Pocket Option</span>";
-      window.postMessage({source:"POCKET_ANALYZER_QUOTE_BRIDGE",kind:"history-request",symbol:pair.value,period,count,stamp},"*");
     }
 
     function loadHistoricalCandles(payload){
@@ -687,7 +674,7 @@
     function updateBacktest(){
       const rate=document.getElementById('btRate'),signals=document.getElementById('btSignals'),sample=document.getElementById('btSample'),note=document.getElementById('btNote');
       const backtestCandles=historyArchive.length?historyArchive:candles;
-      if(!window.PocketAnalysis||backtestCandles.length<100){rate.textContent='—';signals.textContent='—';sample.textContent='—';document.getElementById('btEdge').textContent='Ожидаемое значение: —';document.getElementById('btDiagnostics').innerHTML='<div class="sub">Для диагностики нужно не менее 100 свечей.</div>';document.getElementById('btRisk').innerHTML='<div class="sub">Риск догонов: недостаточно истории.</div>';document.getElementById('btModels').innerHTML='<div class="sub">Сравнение моделей: недостаточно истории.</div>';note.textContent='Для проверки нужно не менее 100 свечей.';return;}
+      if(!window.PocketAnalysis||backtestCandles.length<100){rate.textContent='—';signals.textContent='—';sample.textContent='—';document.getElementById('btEdge').textContent='Ожидаемое значение: —';document.getElementById('btDiagnostics').innerHTML='<div class="sub">Для диагностики нужно не менее 100 свечей.</div>';document.getElementById('btRisk').innerHTML='<div class="sub">Риск догонов: недостаточно истории.</div>';document.getElementById('btModels').innerHTML='<div class="sub">Сравнение моделей: недостаточно истории.</div>';note.textContent='Для проверки нужно не менее 100 доступных свечей. Автозагрузка архива отключена.';return;}
       const bt=PocketAnalysis.backtest(backtestCandles,Number(document.getElementById('expiry').value),Number(tf.value),Number(document.getElementById('payout').value));
       if(!bt.supported){rate.textContent='—';signals.textContent='—';sample.textContent='—';document.getElementById('btEdge').textContent='Ожидаемое значение: —';document.getElementById('btDiagnostics').innerHTML='<div class="sub">'+bt.reason+'</div>';document.getElementById('btRisk').innerHTML='<div class="sub">Риск догонов: недостаточно истории.</div>';document.getElementById('btModels').innerHTML='<div class="sub">Сравнение моделей: тест не поддерживается.</div>';note.textContent=bt.reason;return;}
       rate.textContent=bt.winRate==null?'—':bt.winRate.toFixed(1)+'%';signals.textContent=String(bt.signals);sample.textContent=bt.wins+' / '+bt.losses;
@@ -709,7 +696,7 @@
       renderRows(groups.filter(g=>g.label.includes(' · ')));
       renderModelComparison(bt.models,bt.breakEvenRate);
       renderRiskStats(bt.risk);
-      note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены из доли верных.':'Walk-forward по закрытым свечам. Диагностика показывает группы условий, а не доказывает причинность. Выплата и задержки исполнения не учтены.';
+      note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены из доли верных.':'Тест рассчитан по доступным анализатору свечам; автоматическая загрузка 90-дневного архива отключена. Диагностика показывает группы условий, а не доказывает причинность. Выплата и задержки исполнения не учтены.';
     }
     function updateCountdown(stamp){
       const period=Number(tf.value),remaining=period-(stamp%period);
