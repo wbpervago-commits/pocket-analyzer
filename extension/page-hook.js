@@ -6,6 +6,7 @@
   const NativeWebSocket = window.WebSocket;
   const pendingBinary = new WeakMap();
   const messageQueues = new WeakMap();
+  const socketLabels = new WeakMap();
 
   let activeSocket = null;
   let pendingRequest = null;
@@ -360,7 +361,15 @@
   }
 
   function flushPendingRequest() {
-    if (inFlight || !pendingRequest || !isOpen(activeSocket)) return;
+    if (inFlight || !pendingRequest) return;
+    if (!isOpen(activeSocket)) {
+      post("history-waiting-for-stream", {
+        reason: activeSocket ? "active-socket-not-open" : "no-recognized-market-stream",
+        endpoint: activeSocket ? (socketLabels.get(activeSocket) || "unknown") : "none",
+        readyState: activeSocket ? activeSocket.readyState : -1
+      });
+      return;
+    }
     const item = pendingRequest;
     pendingRequest = null;
     sendPayload(activeSocket, item);
@@ -376,7 +385,15 @@
     if (name === "updateStream" || name === "updateHistoryNewFast" ||
         name === "loadHistoryPeriodFast") {
       if (isOpen(socket)) {
+        const changed = activeSocket !== socket;
         activeSocket = socket;
+        if (changed) {
+          post("history-stream-detected", {
+            event: name,
+            endpoint: socketLabels.get(socket) || "unknown",
+            readyState: socket.readyState
+          });
+        }
         flushPendingRequest();
       }
     }
@@ -435,6 +452,13 @@
       maxPages: session.maxPages
     });
 
+    if (!isOpen(activeSocket)) {
+      post("history-waiting-for-stream", {
+        reason: activeSocket ? "active-socket-not-open" : "no-recognized-market-stream",
+        endpoint: activeSocket ? (socketLabels.get(activeSocket) || "unknown") : "none",
+        readyState: activeSocket ? activeSocket.readyState : -1
+      });
+    }
     flushPendingRequest();
   }
 
@@ -448,6 +472,18 @@
   window.WebSocket = new Proxy(NativeWebSocket, {
     construct(target, args, newTarget) {
       const socket = Reflect.construct(target, args, newTarget);
+      let endpoint = "unknown";
+      try {
+        endpoint = new URL(String(args[0]), location.href).host;
+      } catch (_) {}
+      socketLabels.set(socket, endpoint);
+
+      socket.addEventListener("open", () => {
+        post("history-socket-open", {
+          endpoint,
+          readyState: socket.readyState
+        });
+      });
 
       socket.addEventListener("message", event => {
         const previous = messageQueues.get(socket) || Promise.resolve();
@@ -455,13 +491,23 @@
         messageQueues.set(socket, next);
       });
 
-      socket.addEventListener("close", () => {
+      socket.addEventListener("close", event => {
         pendingBinary.delete(socket);
+        post("history-socket-closed", {
+          endpoint: socketLabels.get(socket) || "unknown",
+          code: event.code,
+          reason: event.reason || "no-reason",
+          wasClean: event.wasClean
+        });
         if (activeSocket === socket) activeSocket = null;
         if (inFlight?.socket === socket) {
           if (!pendingRequest) pendingRequest = inFlight.item;
           inFlight = null;
-          post("history-request-queued", { reason: "socket-closed-before-response" });
+          post("history-request-queued", {
+            reason: "socket-closed-before-response",
+            code: event.code,
+            endpoint: socketLabels.get(socket) || "unknown"
+          });
         }
       });
 
