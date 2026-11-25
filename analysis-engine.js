@@ -781,13 +781,6 @@
         streaks4Plus:riskStats.streaks4Plus,streaks5Plus:riskStats.streaks5Plus,
         risk100:estimateStreakRisk(rows) };
     };
-    const models = modelDefinitions.map(def => {
-      const selected = outcomes.filter(def.test);
-      const train = selected.filter(x=>x.entryIndex < splitAt);
-      const test = selected.filter(x=>x.entryIndex >= splitAt);
-      return { id:def.id, label:def.label, full:summarizeModel(selected), train:summarizeModel(train), test:summarizeModel(test),
-        status: train.length >= 50 && test.length >= 30 ? 'tested' : 'small-sample' };
-    });
     const indicatorModels = modelDefinitions.map(def => {
       const selected = outcomes.filter(def.test);
       const train = selected.filter(x=>x.entryIndex < splitAt);
