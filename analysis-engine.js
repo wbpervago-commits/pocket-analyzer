@@ -140,6 +140,280 @@
     return { bullEngulf, bearEngulf, bullPin, bearPin, inside, doji: body / range <= 0.1 };
   }
 
+  function lineThrough(a,b,x){
+    if(!a||!b||b.index===a.index)return a?a.price:0;
+    return a.price+(b.price-a.price)*(x-a.index)/(b.index-a.index);
+  }
+
+  function regressionLine(values){
+    const n=values.length;
+    if(!n)return {slope:0,at:()=>0};
+    const mx=(n-1)/2,my=mean(values);
+    let numerator=0,denominator=0;
+    for(let i=0;i<n;i++){numerator+=(i-mx)*(values[i]-my);denominator+=(i-mx)*(i-mx);}
+    const slope=denominator?numerator/denominator:0,intercept=my-slope*mx;
+    return {slope,at:x=>intercept+slope*x};
+  }
+
+  function oneWayDirection(up,down){
+    return up&&!down?1:down&&!up?-1:0;
+  }
+
+  // Causal OHLC pattern detector. Swing points are only accepted after two
+  // right-hand bars exist; nothing after the requested index is inspected.
+  function detectChartPatterns(candles,index,atrValue){
+    const flags={
+      falseBreakUp:false,falseBreakDown:false,
+      resistanceRejected:false,supportHeld:false,
+      doubleTopBreakdown:false,doubleBottomBreakout:false,
+      tripleTopBreakdown:false,tripleBottomBreakout:false,
+      headShouldersBreakdown:false,inverseHeadShouldersBreakout:false,
+      ascendingTriangleBreakout:false,descendingTriangleBreakdown:false,
+      symmetricTriangleBreakoutUp:false,symmetricTriangleBreakoutDown:false,
+      risingWedgeBreakdown:false,fallingWedgeBreakout:false,
+      rectangleBreakoutUp:false,rectangleBreakoutDown:false,
+      bullFlagBreakout:false,bearFlagBreakdown:false,
+      bullPennantBreakout:false,bearPennantBreakdown:false,
+      bullishRetest:false,bearishRetest:false,
+      bullChannelBounce:false,bearChannelBounce:false
+    };
+    const emptyFamilies={falseBreakout:0,levelReaction:0,reversal:0,triangles:0,continuation:0,retest:0,channels:0,rangeBreakout:0,all:0};
+    const empty={flags,families:emptyFamilies,direction:0,labels:[],count:0};
+    if(index<23)return empty;
+
+    const start=Math.max(0,index-63),w=candles.slice(start,index+1),n=w.length;
+    if(n<23)return empty;
+    const c=w[n-1],p=w[n-2];
+    let atr=Number(atrValue);
+    if(!(atr>0)){
+      atr=mean(w.slice(-14).map(x=>x.high-x.low))||Math.abs(c.close)*1e-6;
+    }
+    atr=Math.max(atr,Math.abs(c.close)*1e-7,1e-10);
+    const tolerance=0.35*atr;
+    const highs=[],lows=[];
+    for(let k=2;k<n-2;k++){
+      const leftHigh=Math.max(w[k-2].high,w[k-1].high);
+      const rightHigh=Math.max(w[k+1].high,w[k+2].high);
+      const leftLow=Math.min(w[k-2].low,w[k-1].low);
+      const rightLow=Math.min(w[k+1].low,w[k+2].low);
+      if(w[k].high>leftHigh&&w[k].high>=rightHigh)highs.push({index:k,price:w[k].high});
+      if(w[k].low<leftLow&&w[k].low<=rightLow)lows.push({index:k,price:w[k].low});
+    }
+    const directionFrom=(up,down)=>oneWayDirection(up,down);
+    const hasRepeated=(points,count,maxSpread,maxGap=32)=>{
+      const group=points.slice(-count);
+      if(group.length!==count)return null;
+      if(group[group.length-1].index-group[0].index>maxGap)return null;
+      for(let j=1;j<group.length;j++){
+        const gap=group[j].index-group[j-1].index;
+        if(gap<3||gap>maxGap)return null;
+      }
+      const prices=group.map(x=>x.price);
+      if(Math.max(...prices)-Math.min(...prices)>maxSpread)return null;
+      return group;
+    };
+    const extremeBetween=(left,right,field,mode)=>{
+      const rows=w.slice(left.index+1,right.index);
+      if(!rows.length)return null;
+      const values=rows.map(x=>x[field]);
+      return mode==='min'?Math.min(...values):Math.max(...values);
+    };
+    const breakUp=(level)=>p.close<=level+0.08*atr&&c.close>level+0.06*atr;
+    const breakDown=(level)=>p.close>=level-0.08*atr&&c.close<level-0.06*atr;
+
+    // False breaks of the previous 20-bar high/low.
+    const prior20=w.slice(Math.max(0,n-21),n-1);
+    if(prior20.length>=15){
+      const priorHigh=Math.max(...prior20.map(x=>x.high));
+      const priorLow=Math.min(...prior20.map(x=>x.low));
+      flags.falseBreakUp=c.high>priorHigh+0.05*atr&&c.close<priorHigh-0.02*atr;
+      flags.falseBreakDown=c.low<priorLow-0.05*atr&&c.close>priorLow+0.02*atr;
+    }
+
+    // Double/triple tops and bottoms: the pattern is actionable only on a neckline cross.
+    const doubleHighs=hasRepeated(highs,2,0.45*atr,36);
+    if(doubleHighs){
+      const neck=extremeBetween(doubleHighs[0],doubleHighs[1],'low','min');
+      if(neck!=null&&doubleHighs[0].price-neck>=0.65*atr&&breakDown(neck))flags.doubleTopBreakdown=true;
+    }
+    const doubleLows=hasRepeated(lows,2,0.45*atr,36);
+    if(doubleLows){
+      const neck=extremeBetween(doubleLows[0],doubleLows[1],'high','max');
+      if(neck!=null&&neck-doubleLows[0].price>=0.65*atr&&breakUp(neck))flags.doubleBottomBreakout=true;
+    }
+    const tripleHighs=hasRepeated(highs,3,0.60*atr,48);
+    if(tripleHighs){
+      const neck=extremeBetween(tripleHighs[0],tripleHighs[2],'low','min');
+      if(neck!=null&&tripleHighs[0].price-neck>=0.75*atr&&breakDown(neck))flags.tripleTopBreakdown=true;
+    }
+    const tripleLows=hasRepeated(lows,3,0.60*atr,48);
+    if(tripleLows){
+      const neck=extremeBetween(tripleLows[0],tripleLows[2],'high','max');
+      if(neck!=null&&neck-tripleLows[0].price>=0.75*atr&&breakUp(neck))flags.tripleBottomBreakout=true;
+    }
+
+    // Head-and-shoulders / inverse head-and-shoulders with a neckline break.
+    const shoulders=highs.slice(-3);
+    if(shoulders.length===3){
+      const [left,head,right]=shoulders;
+      const leftNeck=extremeBetween(left,head,'low','min');
+      const rightNeck=extremeBetween(head,right,'low','min');
+      const spacing=head.index-left.index>=3&&right.index-head.index>=3&&right.index-left.index<=48;
+      if(spacing&&leftNeck!=null&&rightNeck!=null&&Math.abs(left.price-right.price)<=0.5*atr&&
+        head.price-Math.max(left.price,right.price)>=0.55*atr){
+        const neck=(leftNeck+rightNeck)/2;
+        if(breakDown(neck))flags.headShouldersBreakdown=true;
+      }
+    }
+    const inverseShoulders=lows.slice(-3);
+    if(inverseShoulders.length===3){
+      const [left,head,right]=inverseShoulders;
+      const leftNeck=extremeBetween(left,head,'high','max');
+      const rightNeck=extremeBetween(head,right,'high','max');
+      const spacing=head.index-left.index>=3&&right.index-head.index>=3&&right.index-left.index<=48;
+      if(spacing&&leftNeck!=null&&rightNeck!=null&&Math.abs(left.price-right.price)<=0.5*atr&&
+        Math.min(left.price,right.price)-head.price>=0.55*atr){
+        const neck=(leftNeck+rightNeck)/2;
+        if(breakUp(neck))flags.inverseHeadShouldersBreakout=true;
+      }
+    }
+
+    // Triangles and wedges use two confirmed swing highs and lows.
+    const hp=highs.slice(-2),lp=lows.slice(-2);
+    if(hp.length===2&&lp.length===2){
+      const hSlope=(hp[1].price-hp[0].price)/(hp[1].index-hp[0].index);
+      const lSlope=(lp[1].price-lp[0].price)/(lp[1].index-lp[0].index);
+      const span=n-1-Math.min(hp[0].index,lp[0].index);
+      const hMove=hSlope*span,lMove=lSlope*span;
+      const upperNow=lineThrough(hp[0],hp[1],n-1),upperPrev=lineThrough(hp[0],hp[1],n-2);
+      const lowerNow=lineThrough(lp[0],lp[1],n-1),lowerPrev=lineThrough(lp[0],lp[1],n-2);
+      const asc=Math.abs(hMove)<=0.45*atr&&lMove>=0.35*atr;
+      const desc=Math.abs(lMove)<=0.45*atr&&hMove<=-0.35*atr;
+      const sym=hMove<=-0.35*atr&&lMove>=0.35*atr;
+      if(asc&&c.close>upperNow+0.05*atr&&p.close<=upperPrev+0.05*atr)flags.ascendingTriangleBreakout=true;
+      if(desc&&c.close<lowerNow-0.05*atr&&p.close>=lowerPrev-0.05*atr)flags.descendingTriangleBreakdown=true;
+      if(sym&&c.close>upperNow+0.05*atr&&p.close<=upperPrev+0.05*atr)flags.symmetricTriangleBreakoutUp=true;
+      if(sym&&c.close<lowerNow-0.05*atr&&p.close>=lowerPrev-0.05*atr)flags.symmetricTriangleBreakoutDown=true;
+      if(hSlope>0&&lSlope>hSlope&&(lSlope-hSlope)*span>=0.35*atr&&c.close<lowerNow-0.05*atr&&p.close>=lowerPrev-0.05*atr)flags.risingWedgeBreakdown=true;
+      if(hSlope<lSlope&&lSlope<0&&(lSlope-hSlope)*span>=0.35*atr&&c.close>upperNow+0.05*atr&&p.close<=upperPrev+0.05*atr)flags.fallingWedgeBreakout=true;
+    }
+
+    // Rectangle: repeated tests of both boundaries followed by a close outside the range.
+    if(prior20.length>=15){
+      const top=Math.max(...prior20.map(x=>x.high)),bottom=Math.min(...prior20.map(x=>x.low));
+      const width=top-bottom;
+      if(width>=0.8*atr&&width<=5.5*atr){
+        const topTouches=prior20.filter(x=>x.high>=top-0.22*atr).length;
+        const bottomTouches=prior20.filter(x=>x.low<=bottom+0.22*atr).length;
+        if(topTouches>=2&&bottomTouches>=2){
+          if(p.close<=top+0.08*atr&&c.close>top+0.06*atr)flags.rectangleBreakoutUp=true;
+          if(p.close>=bottom-0.08*atr&&c.close<bottom-0.06*atr)flags.rectangleBreakoutDown=true;
+        }
+      }
+    }
+
+    // Retest: a confirmed close outside an earlier 20-bar range, then a return to that boundary.
+    for(let j=Math.max(20,n-8);j<n-1;j++){
+      const before=w.slice(j-20,j);
+      if(before.length<15)continue;
+      const oldHigh=Math.max(...before.map(x=>x.high)),oldLow=Math.min(...before.map(x=>x.low));
+      if(w[j].close>oldHigh+0.05*atr&&c.low<=oldHigh+0.18*atr&&c.close>oldHigh+0.05*atr)flags.bullishRetest=true;
+      if(w[j].close<oldLow-0.05*atr&&c.high>=oldLow-0.18*atr&&c.close<oldLow-0.05*atr)flags.bearishRetest=true;
+    }
+
+    // Clustered swing levels and rejection candles.
+    const cluster=(points)=>{
+      const recent=points.slice(-8);
+      let best=null;
+      for(const point of recent){
+        const peers=recent.filter(x=>Math.abs(x.price-point.price)<=0.30*atr);
+        if(peers.length>=2&&(!best||peers.length>best.count)){
+          best={price:mean(peers.map(x=>x.price)),count:peers.length};
+        }
+      }
+      return best;
+    };
+    const resistance=cluster(highs),support=cluster(lows);
+    const body=Math.abs(c.close-c.open);
+    const upperWick=c.high-Math.max(c.open,c.close);
+    const lowerWick=Math.min(c.open,c.close)-c.low;
+    if(resistance&&c.high>=resistance.price-0.15*atr&&c.close<=resistance.price-0.08*atr&&upperWick>=Math.max(0.12*atr,body*0.45))flags.resistanceRejected=true;
+    if(support&&c.low<=support.price+0.15*atr&&c.close>=support.price+0.08*atr&&lowerWick>=Math.max(0.12*atr,body*0.45))flags.supportHeld=true;
+
+    // Parallel channels: detect a rejection from one of the fitted channel edges.
+    const channelBars=w.slice(Math.max(0,n-19),n-1);
+    if(channelBars.length>=12){
+      const upperReg=regressionLine(channelBars.map(x=>x.high));
+      const lowerReg=regressionLine(channelBars.map(x=>x.low));
+      const x=channelBars.length;
+      const upper=upperReg.at(x),lower=lowerReg.at(x);
+      const channelWidth=upper-lower;
+      const slopeGap=Math.abs(upperReg.slope-lowerReg.slope)*(x-1);
+      if(channelWidth>=0.65*atr&&channelWidth<=5*atr&&slopeGap<=0.40*atr){
+        if(c.low<=lower+0.16*atr&&c.close>=lower+0.12*atr&&lowerWick>=0.12*atr)flags.bullChannelBounce=true;
+        if(c.high>=upper-0.16*atr&&c.close<=upper-0.12*atr&&upperWick>=0.12*atr)flags.bearChannelBounce=true;
+      }
+    }
+
+    // Flag and pennant continuation: impulse first, seven-bar consolidation second, breakout last.
+    const impulseStart=n-17,impulseEnd=n-9,consolidation=w.slice(n-8,n-1);
+    if(impulseStart>=0&&consolidation.length===7){
+      const impulse=w[impulseEnd].close-w[impulseStart].close;
+      const consHigh=Math.max(...consolidation.map(x=>x.high));
+      const consLow=Math.min(...consolidation.map(x=>x.low));
+      const consWidth=consHigh-consLow;
+      const upperReg=regressionLine(consolidation.map(x=>x.high));
+      const lowerReg=regressionLine(consolidation.map(x=>x.low));
+      const upperMove=upperReg.slope*6,lowerMove=lowerReg.slope*6;
+      const parallel=Math.abs(upperMove-lowerMove)<=0.45*atr;
+      const compact=consWidth>=0.55*atr&&consWidth<=3.8*atr;
+      const converging=upperMove<=-0.12*atr&&lowerMove>=0.12*atr&&
+        (consolidation[6].high-consolidation[6].low)<=(consolidation[0].high-consolidation[0].low)-0.08*atr;
+      if(compact&&impulse>=2*atr){
+        if(parallel&&upperMove<=0.20*atr&&lowerMove<=0.20*atr&&(upperMove<0||lowerMove<0)&&c.close>consHigh+0.05*atr)flags.bullFlagBreakout=true;
+        if(converging&&c.close>consHigh+0.05*atr)flags.bullPennantBreakout=true;
+      }
+      if(compact&&impulse<=-2*atr){
+        if(parallel&&upperMove>=-0.20*atr&&lowerMove>=-0.20*atr&&(upperMove>0||lowerMove>0)&&c.close<consLow-0.05*atr)flags.bearFlagBreakdown=true;
+        if(converging&&c.close<consLow-0.05*atr)flags.bearPennantBreakdown=true;
+      }
+    }
+
+    const families={
+      falseBreakout:directionFrom(flags.falseBreakDown,flags.falseBreakUp),
+      levelReaction:directionFrom(flags.supportHeld,flags.resistanceRejected),
+      reversal:directionFrom(flags.doubleBottomBreakout||flags.tripleBottomBreakout||flags.inverseHeadShouldersBreakout,
+        flags.doubleTopBreakdown||flags.tripleTopBreakdown||flags.headShouldersBreakdown),
+      triangles:directionFrom(flags.ascendingTriangleBreakout||flags.symmetricTriangleBreakoutUp||flags.fallingWedgeBreakout,
+        flags.descendingTriangleBreakdown||flags.symmetricTriangleBreakoutDown||flags.risingWedgeBreakdown),
+      continuation:directionFrom(flags.bullFlagBreakout||flags.bullPennantBreakout,
+        flags.bearFlagBreakdown||flags.bearPennantBreakdown),
+      retest:directionFrom(flags.bullishRetest,flags.bearishRetest),
+      channels:directionFrom(flags.bullChannelBounce,flags.bearChannelBounce),
+      rangeBreakout:directionFrom(flags.rectangleBreakoutUp,flags.rectangleBreakoutDown)
+    };
+    const activeDirections=Object.values(families).filter(x=>x!==0);
+    families.all=activeDirections.length&&activeDirections.every(x=>x===activeDirections[0])?activeDirections[0]:0;
+    const labels=[];
+    const labelMap={
+      falseBreakUp:'Ложный пробой сопротивления',falseBreakDown:'Ложный пробой поддержки',
+      resistanceRejected:'Отбой от сопротивления',supportHeld:'Отбой от поддержки',
+      doubleTopBreakdown:'Двойная вершина',doubleBottomBreakout:'Двойное дно',
+      tripleTopBreakdown:'Тройная вершина',tripleBottomBreakout:'Тройное дно',
+      headShouldersBreakdown:'Голова и плечи',inverseHeadShouldersBreakout:'Перевёрнутая голова и плечи',
+      ascendingTriangleBreakout:'Пробой восходящего треугольника',descendingTriangleBreakdown:'Пробой нисходящего треугольника',
+      symmetricTriangleBreakoutUp:'Пробой симметричного треугольника вверх',symmetricTriangleBreakoutDown:'Пробой симметричного треугольника вниз',
+      risingWedgeBreakdown:'Пробой восходящего клина вниз',fallingWedgeBreakout:'Пробой нисходящего клина вверх',
+      rectangleBreakoutUp:'Пробой диапазона вверх',rectangleBreakoutDown:'Пробой диапазона вниз',
+      bullFlagBreakout:'Бычий флаг',bearFlagBreakdown:'Медвежий флаг',
+      bullPennantBreakout:'Бычий вымпел',bearPennantBreakdown:'Медвежий вымпел',
+      bullishRetest:'Бычий ретест',bearishRetest:'Медвежий ретест',
+      bullChannelBounce:'Отбой от нижней границы канала',bearChannelBounce:'Отбой от верхней границы канала'
+    };
+    for(const [key,value] of Object.entries(flags))if(value)labels.push(labelMap[key]||key);
+    return {flags,families,direction:families.all,labels,count:labels.length};
+  }
+
   function higherTimeframeTrend(candles, timeframeSeconds) {
     const factor = timeframeSeconds === 60 ? 5 : timeframeSeconds === 120 ? 3 : timeframeSeconds === 300 ? 3 : 4;
     const higherSeconds = timeframeSeconds * factor;
@@ -233,6 +507,7 @@
     const adx = prepared ? prepared.adx : adxSeries(candles.slice(0, n));
     const c = candles[i], p = candles[i - 1];
     const pattern = candlePattern(c, p);
+    const chartPatterns = detectChartPatterns(candles, i, atr[i]);
     const higherTrend = prepared ? prepared.higherTrend[i] : higherTimeframeTrend(candles.slice(0, n), timeframeSeconds);
     let score = 0;
     const factors = [];
@@ -290,12 +565,25 @@
     const aligned = (score >= 4 && e9[i] > e21[i]) || (score <= -4 && e9[i] < e21[i]);
     const volatileEnough = atrPct != null && atrPct > 0.00002;
     const direction = aligned && volatileEnough ? (score >= 4 ? 'UP' : 'DOWN') : 'NONE';
+    if(chartPatterns.direction!==0&&((chartPatterns.direction>0&&direction==='UP')||(chartPatterns.direction<0&&direction==='DOWN'))&&chartPatterns.labels.length){
+      factors.push({value:0,label:'Графические фигуры подтверждают: '+chartPatterns.labels.slice(0,2).join(', ')});
+    }
     const strength = Math.min(95, Math.round(50 + Math.abs(score) * 5));
     return {
       ready: true, direction, score, confidence: direction === 'NONE' ? null : strength,
       indicators: { ema9: e9[i], ema21: e21[i], ema50: e50[i], rsi: rs[i], macd: mc.line[i], macdSignal: mc.signal[i], macdHist: mc.hist[i], stochasticK: st.k[i], stochasticD: st.d[i], bb: b, atr: atr[i], adx: adx[i], atrPct },
-      pattern, higherTrend, factors,
+      pattern, chartPatterns, higherTrend, factors,
       features: {
+        chartPatternDirection: chartPatterns.direction,
+        chartPatternCount: chartPatterns.count,
+        falseBreakoutDirection: chartPatterns.families.falseBreakout,
+        levelReactionDirection: chartPatterns.families.levelReaction,
+        reversalPatternDirection: chartPatterns.families.reversal,
+        trianglePatternDirection: chartPatterns.families.triangles,
+        continuationPatternDirection: chartPatterns.families.continuation,
+        retestDirection: chartPatterns.families.retest,
+        channelReactionDirection: chartPatterns.families.channels,
+        rangeBreakoutDirection: chartPatterns.families.rangeBreakout,
         emaStack: e9[i] > e21[i] && e21[i] > e50[i] ? 1 : e9[i] < e21[i] && e21[i] < e50[i] ? -1 : 0,
         emaSlopeDirection: slope > 0 ? 1 : slope < 0 ? -1 : 0,
         macdMomentumDirection: mc.hist[i] != null && mc.hist[i - 1] != null && mc.hist[i] > 0 && mc.hist[i] > mc.hist[i - 1] ? 1 : mc.hist[i] != null && mc.hist[i - 1] != null && mc.hist[i] < 0 && mc.hist[i] < mc.hist[i - 1] ? -1 : 0,
@@ -345,13 +633,52 @@
     };
   }
 
-  function backtest(candles, expirySeconds, timeframeSeconds, payoutRate = 0.8) {
+  function estimateStreakRisk(trades,horizon=100,simulations=400,blockLength=5){
+    const sequence=trades.map(x=>x.tie?0:(x.win?1:-1));
+    if(sequence.length<50)return null;
+    const block=Math.min(blockLength,sequence.length);
+    let seed=(sequence.length*9301+sequence.reduce((s,x,i)=>s+(x===-1?(i+17)*13:x===1?(i+7)*3:i),0)+49297)%233280;
+    if(seed<=0)seed=1;
+    const random=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
+    let max3=0,max4=0,max5=0,totalMax=0;
+    for(let sim=0;sim<simulations;sim++){
+      let lossRun=0,maxRun=0,filled=0;
+      while(filled<horizon){
+        const start=Math.floor(random()*(sequence.length-block+1));
+        for(let j=0;j<block&&filled<horizon;j++,filled++){
+          const outcome=sequence[start+j];
+          if(outcome===-1){lossRun++;maxRun=Math.max(maxRun,lossRun);}
+          else lossRun=0;
+        }
+      }
+      totalMax+=maxRun;
+      if(maxRun>=3)max3++;
+      if(maxRun>=4)max4++;
+      if(maxRun>=5)max5++;
+    }
+    return {horizon,simulations,blockLength:block,pMax3:max3/simulations,pMax4:max4/simulations,pMax5:max5/simulations,meanMax:totalMax/simulations};
+  }
+
+  function backtest(candles, expirySeconds, timeframeSeconds, payoutRate = 0.9) {
     if (!Number.isFinite(expirySeconds) || !Number.isFinite(timeframeSeconds) || expirySeconds < timeframeSeconds || expirySeconds % timeframeSeconds !== 0) return { supported: false, reason: 'Для точного теста экспирация должна быть не короче таймфрейма и кратна ему.' };
     const step = expirySeconds / timeframeSeconds;
     let signals = 0, wins = 0, losses = 0, ties = 0;
     const byDirection = { UP: { signals: 0, wins: 0, losses: 0, ties: 0 }, DOWN: { signals: 0, wins: 0, losses: 0, ties: 0 } };
     const groups = {};
     const outcomes = [], nonOverlappingOutcomes = [];
+    const patternFamilies=[
+      {id:'all',label:'Графические фигуры · единый сигнал'},
+      {id:'falseBreakout',label:'Фигуры · ложные пробои'},
+      {id:'levelReaction',label:'Фигуры · поддержка/сопротивление'},
+      {id:'reversal',label:'Фигуры · разворотные модели'},
+      {id:'triangles',label:'Фигуры · треугольники и клинья'},
+      {id:'continuation',label:'Фигуры · флаги и вымпелы'},
+      {id:'retest',label:'Фигуры · ретесты'},
+      {id:'channels',label:'Фигуры · каналы'},
+      {id:'rangeBreakout',label:'Фигуры · пробой прямоугольника'}
+    ];
+    const patternOutcomes=Object.fromEntries(patternFamilies.map(x=>[x.id,[]]));
+    const patternNextAllowed=Object.fromEntries(patternFamilies.map(x=>[x.id,59]));
     let nextNonOverlappingIndex = 59;
     const prepared = buildAnalysisCache(candles, timeframeSeconds);
     const addGroup = (key, result, win, tie) => {
@@ -373,9 +700,22 @@
       if (!continuousWindow) continue;
 
       const result = evaluate(candles, timeframeSeconds, prepared, i);
-      if (result.direction === 'NONE') continue;
       const entry = candles[i + 1].open, exit = candles[i + step].close;
       const tie = Math.abs(exit - entry) < 1e-12;
+      const makeOutcome = direction => ({
+        direction, adx:result.indicators?.adx, win:!tie&&(direction==='UP'?exit>entry:exit<entry), tie,
+        entryIndex:i+1, score:result.score, features:result.features,
+        chartPatterns:result.chartPatterns, higherDirection:result.features?.htfDirection??0
+      });
+      // Each chart-pattern family is tested as a separate non-overlapping UP/DOWN stream.
+      for(const family of patternFamilies){
+        const direction=family.id==='all'?result.chartPatterns?.direction:(result.chartPatterns?.families?.[family.id]??0);
+        if(direction&&i>=patternNextAllowed[family.id]){
+          patternOutcomes[family.id].push(makeOutcome(direction>0?'UP':'DOWN'));
+          patternNextAllowed[family.id]=i+step;
+        }
+      }
+      if (result.direction === 'NONE') continue;
       const win = !tie && (result.direction === 'UP' ? exit > entry : exit < entry);
       signals++;
       const side = byDirection[result.direction];
@@ -428,7 +768,7 @@
       { id:'up_adx_ema_macd', label:'ВВЕРХ · ADX 20–25 + EMA + MACD', test:t=>t.direction==='UP' && t.adx>=20 && t.adx<25 && t.features?.emaStack===1 && t.features?.macdMomentumDirection===1 },
       { id:'up_full', label:'ВВЕРХ · EMA + наклон + MACD + RSI + Bollinger + HTF', test:t=>t.direction==='UP' && t.features?.emaStack===1 && t.features?.emaSlopeDirection===1 && t.features?.macdMomentumDirection===1 && t.features?.rsiDirection===1 && t.features?.bollingerDirection===1 && t.higherDirection===1 }
     ];
-    const splitAt = Math.max(1, Math.floor(outcomes.length * 0.7));
+    const splitAt = Math.max(1, Math.floor(candles.length * 0.7));
     const summarizeModel = rows => {
       const w = rows.filter(x=>x.win && !x.tie).length;
       const l = rows.filter(x=>!x.win && !x.tie).length;
@@ -436,15 +776,33 @@
       const decided = w + l;
       const riskStats = streakStats(rows);
       return { signals: rows.length, wins:w, losses:l, ties, winRate: decided ? w/decided*100 : null,
-        expectedValue: decided ? (w*payoutRate-l)/decided : null, maxLossStreak:riskStats.maxLossStreak };
+        expectedValue: decided ? (w*payoutRate-l)/decided : null, maxLossStreak:riskStats.maxLossStreak,
+        streaks2Plus:riskStats.streaks2Plus,streaks3Plus:riskStats.streaks3Plus,
+        streaks4Plus:riskStats.streaks4Plus,streaks5Plus:riskStats.streaks5Plus,
+        risk100:estimateStreakRisk(rows) };
     };
     const models = modelDefinitions.map(def => {
       const selected = outcomes.filter(def.test);
-      const train = selected.filter(x=>x.entryIndex < (outcomes[splitAt]?.entryIndex ?? Infinity));
-      const test = selected.filter(x=>x.entryIndex >= (outcomes[splitAt]?.entryIndex ?? Infinity));
+      const train = selected.filter(x=>x.entryIndex < splitAt);
+      const test = selected.filter(x=>x.entryIndex >= splitAt);
       return { id:def.id, label:def.label, full:summarizeModel(selected), train:summarizeModel(train), test:summarizeModel(test),
         status: train.length >= 50 && test.length >= 30 ? 'tested' : 'small-sample' };
     });
+    const indicatorModels = modelDefinitions.map(def => {
+      const selected = outcomes.filter(def.test);
+      const train = selected.filter(x=>x.entryIndex < splitAt);
+      const test = selected.filter(x=>x.entryIndex >= splitAt);
+      return { id:def.id, label:def.label, full:summarizeModel(selected), train:summarizeModel(train), test:summarizeModel(test),
+        source:'indicators',status: train.length >= 50 && test.length >= 30 ? 'tested' : 'small-sample' };
+    });
+    const chartPatternModels = patternFamilies.map(def=>{
+      const selected=patternOutcomes[def.id];
+      const train=selected.filter(x=>x.entryIndex<splitAt);
+      const test=selected.filter(x=>x.entryIndex>=splitAt);
+      return {id:'pattern_'+def.id,label:def.label,full:summarizeModel(selected),train:summarizeModel(train),
+        test:summarizeModel(test),source:'chart-pattern',status:train.length>=50&&test.length>=30?'tested':'small-sample'};
+    });
+    const models=[...indicatorModels,...chartPatternModels];
     const risk = {
       overall: streakStats(outcomes),
       nonOverlapping: streakStats(nonOverlappingOutcomes),
@@ -462,5 +820,5 @@
     return { supported: true, signals, wins, losses, ties, winRate, breakEvenRate, expectedValue, byDirection, diagnostics, risk, models, modelSplitIndex: splitAt, expiryBars: step };
   }
 
-  root.PocketAnalysis = { evaluate, backtest, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
+  root.PocketAnalysis = { evaluate, backtest, detectChartPatterns, streakStats, estimateStreakRisk, emaSeries, rsiSeries, macdSeries, bandsSeries, stochasticSeries, atrSeries, adxSeries };
 })(window);
