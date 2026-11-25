@@ -714,7 +714,7 @@
       if(!Number.isFinite(period)||period<=0||!Number.isFinite(stamp))return;
       const elapsed=((stamp%period)+period)%period;
       const remaining=Math.max(0,period-elapsed);
-      document.getElementById('countdown').textContent=remaining.toFixed(1).replace('.',',')+' с';
+      document.getElementById('countdown').textContent=remaining.toFixed(2).replace('.',',')+' с';
     }
     window.addEventListener('resize',()=>drawChart());
     renderTimingStudy();
