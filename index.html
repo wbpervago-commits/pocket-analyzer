@@ -225,7 +225,7 @@
           entryTime:Number(stamp),entryPrice:Number(price),expiresAt:Number(stamp)+expiry,
           direction:direction==='UP'||direction==='DOWN'?direction:'NONE',
           confidence:result.ready?result.confidence:null,score:result.ready?result.score:null,
-          payoutRate,features:result.ready?result.features:null,pattern:result.ready?result.pattern:null,
+          payoutRate,features:result.ready?result.features:null,pattern:result.ready?result.pattern:null,chartPatterns:result.ready?result.chartPatterns:null,
           status:'no-signal',outcome:null,settlementPrice:null,settledAt:null,settlementDelaySeconds:null
         };
         row.key=key;
@@ -669,19 +669,19 @@
         box.style.cssText='padding:7px 0;border-bottom:1px solid #263650;font-size:11px';
         const title=document.createElement('div');title.style.cssText='font-weight:650;margin-bottom:3px';title.textContent=m.label;
         const line=document.createElement('div');line.style.cssText='color:#b9c9e1;display:flex;flex-wrap:wrap;gap:5px 12px';
-        line.textContent='Всего '+m.full.signals+' · '+pct(m.full)+' · EV '+ev(m.full)+' · макс. серия '+streak(m.full);
+        line.textContent=(m.source==='chart-pattern'?'ГРАФИЧЕСКИЕ ФИГУРЫ · ':'')+'Всего '+m.full.signals+' · '+pct(m.full)+' · EV '+ev(m.full)+' · макс. серия '+streak(m.full)+' · серии 3+/4+: '+(m.full.streaks3Plus??0)+'/'+(m.full.streaks4Plus??0);
         const hold=document.createElement('div');hold.style.cssText='color:#91a2bc;margin-top:2px';
         hold.textContent=m.status==='tested'
-          ? 'Тест 30%: '+m.test.signals+' сделок · '+pct(m.test)+' · EV '+ev(m.test)+' · макс. серия '+streak(m.test)+' · обучение: '+m.train.signals+' сделок'
+          ? 'Тест последних 30%: '+m.test.signals+' сделок · '+pct(m.test)+' · EV '+ev(m.test)+' · макс. серия '+streak(m.test)+' · серии 3+/4+: '+(m.test.streaks3Plus??0)+'/'+(m.test.streaks4Plus??0)+' · P(4+ за 100 сделок): '+(m.test.risk100?(m.test.risk100.pMax4*100).toFixed(1)+'%':'н/д')+' · обучение: '+m.train.signals+' сделок'
           : 'Недостаточно наблюдений для отдельного теста (обучение '+m.train.signals+', тест '+m.test.signals+'). Не использовать как подтверждённую модель.';
-        if(m.status==='tested' && m.test.expectedValue!=null && m.test.expectedValue>0 && m.test.winRate>breakEvenRate && m.test.maxLossStreak<=3){
+        if(m.status==='tested' && m.test.signals>=50 && m.test.expectedValue!=null && m.test.expectedValue>0 && m.test.winRate>breakEvenRate && m.test.maxLossStreak<=3 && m.test.streaks3Plus===0 && m.test.risk100 && m.test.risk100.pMax4<=0.20){
           hold.style.color='#20c997';
           hold.textContent='Кандидат для дальнейшей проверки · '+hold.textContent;
         }
         box.append(title,line,hold);root.appendChild(box);
       });
       const note=document.createElement('div');note.className='sub';note.style.marginTop='7px';
-      note.textContent='Модели заданы заранее, а не подбираются перебором всех возможных сочетаний. Положительный результат тестовых 30% — предварительный, не гарантия. Для уверенного вывода нужны новые данные и достаточная выборка.';
+      note.textContent='Графические фигуры тестируются отдельными потоками и пока не меняют основной live-сигнал. Отбор строже ориентирован на серии: положительный EV, точность выше безубыточности, максимум не более 3 потерь подряд, отсутствие серий 3+ в тесте и P(4+ за 100 сделок) не выше 20% по блочному bootstrap. Малые выборки не считаются доказательством.';
       root.appendChild(note);
     }
     function updateBacktest(){
