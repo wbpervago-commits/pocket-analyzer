@@ -159,8 +159,12 @@
       const expiry=Number(document.getElementById('expiry').value);
       const rows=timingStudyLog.filter(x=>x.pair===pair.value&&Number(x.timeframeSeconds)===Number(tf.value)&&Number(x.expirySeconds)===expiry&&Number(x.targetLeadSeconds)===lead);
       const signals=rows.filter(x=>x.direction==='UP'||x.direction==='DOWN');
-      const settled=signals.filter(x=>x.status==='settled');
-      const decisive=settled.filter(x=>x.outcome==='win'||x.outcome==='loss').sort((a,b)=>a.entryTime-b.entryTime);
+      const resolved=signals.filter(x=>x.status==='settled').sort((a,b)=>a.entryTime-b.entryTime);
+      // A quote arriving more than one second after the target expiry is retained,
+      // but excluded from win-rate/EV and breaks the streak sequence as uncertain.
+      const delayed=resolved.filter(x=>Number(x.settlementDelaySeconds)>1);
+      const ties=resolved.filter(x=>x.outcome==='tie'&&Number(x.settlementDelaySeconds)<=1);
+      const decisive=resolved.filter(x=>(x.outcome==='win'||x.outcome==='loss')&&Number(x.settlementDelaySeconds)<=1);
       const wins=decisive.filter(x=>x.outcome==='win').length;
       const losses=decisive.length-wins;
       let current=0,max=0,streak3=0,streak4=0,streak5=0;
@@ -170,16 +174,17 @@
         if(current>=5)streak5++;
         current=0;
       };
-      for(const trade of decisive){
-        if(trade.outcome==='loss'){current++;max=Math.max(max,current);}
-        else closeStreak();
+      for(const trade of resolved){
+        if(Number(trade.settlementDelaySeconds)>1||trade.outcome==='tie'||trade.outcome==='win')closeStreak();
+        else if(trade.outcome==='loss'){current++;max=Math.max(max,current);}
       }
       closeStreak();
       const net=decisive.reduce((sum,x)=>sum+(x.outcome==='win'?Number(x.payoutRate??0.9):-1),0);
       return {
         captured:rows.length,signals:signals.length,pending:signals.filter(x=>x.status==='pending').length,
         skipped:rows.filter(x=>x.status==='skipped-overlap').length,noSignal:rows.filter(x=>x.status==='no-signal').length,
-        settled:decisive.length,wins,losses,winRate:decisive.length?wins/decisive.length*100:null,
+        resolved:resolved.length,settled:decisive.length,ties:ties.length,delayed:delayed.length,
+        wins,losses,winRate:decisive.length?wins/decisive.length*100:null,
         ev:decisive.length?net/decisive.length:null,maxStreak:max,streak3,streak4,streak5
       };
     }
@@ -189,15 +194,15 @@
         const rate=s.winRate==null?'—':s.winRate.toFixed(2)+'%';
         const ev=s.ev==null?'—':(s.ev>=0?'+':'')+(s.ev*100).toFixed(2)+'%';
         document.getElementById(id).textContent=
-          'Снимков '+s.captured+' · сигналов '+s.signals+' · закрыто '+s.settled+
-          ' · победы '+s.wins+'/'+s.losses+' · точность '+rate+' · EV '+ev+
+          'Снимков '+s.captured+' · сигналов '+s.signals+' · исходов '+s.resolved+
+          ' · учтено '+s.settled+' · победы '+s.wins+'/'+s.losses+' · точность '+rate+' · EV '+ev+
           ' · макс. серия '+s.maxStreak+' · серии 3+/4+/5+: '+s.streak3+'/'+s.streak4+'/'+s.streak5+
-          ' · ожидают '+s.pending+' · пропущено из-за занятой сделки '+s.skipped;
+          ' · ничьи '+s.ties+' · задержка >1с '+s.delayed+' · ожидают '+s.pending+' · пропущено из-за занятой сделки '+s.skipped;
       };
       render(7,'timing7Summary');
       render(3,'timing3Summary');
       const note=document.getElementById('timingStudyNote');
-      if(note)note.textContent='Текущая выборка: '+pair.value+' · M'+(Number(tf.value)/60)+' · экспирация '+Number(document.getElementById('expiry').value)+' с · выплата '+Math.round(Number(document.getElementById('payout').value)*100)+'%. Результаты считаются только по живым котировкам; для вывода нужны большие последовательные выборки.';
+      if(note)note.textContent='Текущая выборка: '+pair.value+' · M'+(Number(tf.value)/60)+' · экспирация '+Number(document.getElementById('expiry').value)+' с · выплата '+Math.round(Number(document.getElementById('payout').value)*100)+'%. Для точности в расчёт win rate и EV входят только исходы, закрытые первой котировкой не позднее 1 секунды после экспирации; задержанные исходы сохраняются отдельно.';
     }
     function captureTimingSnapshots(stamp,price){
       const period=Number(tf.value),remaining=period-(stamp%period);
