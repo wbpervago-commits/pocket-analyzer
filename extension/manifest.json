@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pocket Analyzer Quote Bridge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Передаёт только рыночные котировки из открытой страницы Pocket Option в Pocket Analyzer.",
   "minimum_chrome_version": "111",
   "permissions": [
