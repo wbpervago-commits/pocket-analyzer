@@ -73,23 +73,30 @@ function auditOpenAnalyzerTabs() {
             if (!Number.isFinite(n)) return null;
             return n > 1e12 ? n / 1000 : n;
           };
+          const minimumTimestamp = Date.UTC(2000, 0, 1) / 1000;
+          const maximumTimestamp = Date.now() / 1000 + 3600;
 
           const validRows = [];
+          const rejectedRows = [];
           let invalidTimestampRows = 0;
           let invalidOhlcRows = 0;
           for (const row of rows) {
             const time = normalizedTime(row?.time);
-            if (time == null) {
+            if (time == null || time < minimumTimestamp || time > maximumTimestamp) {
               invalidTimestampRows++;
+              rejectedRows.push({ row, reason: "timestamp-out-of-range" });
               continue;
             }
             const open = Number(row.open), high = Number(row.high);
             const low = Number(row.low), close = Number(row.close);
             if (![open, high, low, close].every(Number.isFinite) ||
+                ![open, high, low, close].every(value => value > 0) ||
                 high + 1e-10 < Math.max(open, close) ||
                 low - 1e-10 > Math.min(open, close) ||
                 high + 1e-10 < low) {
               invalidOhlcRows++;
+              rejectedRows.push({ row, reason: "invalid-ohlc" });
+              continue;
             }
             validRows.push({ time, open, high, low, close });
           }
@@ -142,7 +149,9 @@ function auditOpenAnalyzerTabs() {
           const report = {
             symbol,
             timeframeSeconds: period,
-            rows: rows.length,
+            rawRows: rows.length,
+            rows: validRows.length,
+            rejectedRows: rejectedRows.length,
             validTimestampRows: validRows.length,
             uniqueTimestamps: uniqueTimes.length,
             duplicateTimestamps,
@@ -165,7 +174,7 @@ function auditOpenAnalyzerTabs() {
 
           const lines = [
             "Пара / ТФ: " + symbol + " · " + (period / 60) + " мин",
-            "Строк: " + rows.length + " · уникальных времён: " + uniqueTimes.length + " · дубликатов: " + duplicateTimestamps,
+            "Строк: " + rows.length + " · пригодных: " + validRows.length + " · уникальных: " + uniqueTimes.length + " · дубликатов: " + duplicateTimestamps,
             "Диапазон UTC: " + (first == null ? "нет данных" : iso(first) + " — " + iso(last)),
             "Фактический диапазон: " + spanDays.toFixed(2) + " дней (" + spanHours.toFixed(1) + " ч)",
             "Пропуски: " + gapIntervals + " интервалов · ориентировочно отсутствует свечей: " + estimatedMissingCandles,
@@ -182,18 +191,13 @@ function auditOpenAnalyzerTabs() {
 
           const button = document.createElement("button");
           button.type = "button";
-          button.textContent = "Скачать архив и отчёт (" + rows.length + " свечей)";
+          button.textContent = "Скачать очищенный архив и отчёт (" + validRows.length + " свечей)";
           button.style.cssText = "margin-top:9px;padding:8px 11px;border:1px solid #4c8dff;border-radius:7px;background:#172b49;color:#fff;font-weight:600;cursor:pointer";
           button.addEventListener("click", () => {
             const payload = {
               audit: report,
-              candles: rows.map(row => ({
-                time: normalizedTime(row.time),
-                open: Number(row.open),
-                high: Number(row.high),
-                low: Number(row.low),
-                close: Number(row.close)
-              }))
+              rejectedRows,
+              candles: validRows
             };
             const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
