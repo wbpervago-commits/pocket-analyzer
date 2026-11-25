@@ -8,6 +8,37 @@ const engine = globalThis.PocketAnalysis;
 assert.ok(engine, 'PocketAnalysis engine should attach to window');
 assert.equal(typeof engine.detectChartPatterns, 'function');
 
+assert.equal(typeof engine.normalizeLiveQuoteTimestamp, 'function');
+
+{
+  const now = Date.UTC(2026,10,25,22,13,47) / 1000;
+  assert.equal(
+    engine.normalizeLiveQuoteTimestamp(now + 2 * 3600, now),
+    now,
+    'A Pocket Option timestamp two hours ahead should be normalized to UTC'
+  );
+  assert.equal(
+    engine.normalizeLiveQuoteTimestamp((now + 2 * 3600) * 1000, now),
+    now,
+    'Millisecond timestamps should be normalized before applying the broker offset'
+  );
+  assert.equal(
+    engine.normalizeLiveQuoteTimestamp(now + 2 * 3600 - 180, now),
+    now - 180,
+    'A delayed quote with the same two-hour broker offset should preserve its age'
+  );
+  assert.equal(
+    engine.normalizeLiveQuoteTimestamp(now + 1800, now),
+    now + 1800,
+    'A normal timestamp less than one hour ahead should not be shifted'
+  );
+  assert.equal(
+    engine.normalizeLiveQuoteTimestamp(now + 2 * 3600 + 600, now),
+    now + 2 * 3600 + 600,
+    'An offset that is not close to a whole-hour shift should not be guessed'
+  );
+}
+
 function flatCandles(count) {
   return Array.from({length:count}, (_,i) => ({
     time:i*60, open:1.1000, high:1.1010, low:1.0990, close:1.1000
