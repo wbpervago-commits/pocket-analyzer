@@ -41,6 +41,39 @@
     return result;
   }
 
+  function containsMatchingQuote(value, symbol) {
+    if (!symbol || value == null) return false;
+    if (Array.isArray(value)) {
+      if (value.length >= 3 && value[0] === symbol &&
+          typeof value[1] === "number" && Number.isFinite(value[1]) &&
+          typeof value[2] === "number" && Number.isFinite(value[2])) {
+        return true;
+      }
+      return value.some(item => containsMatchingQuote(item, symbol));
+    }
+    if (typeof value === "object") {
+      return Object.values(value).some(item => containsMatchingQuote(item, symbol));
+    }
+    return false;
+  }
+
+  function recognizeRawQuoteStream(socket, payload, source) {
+    const symbol = activeHistorySession?.symbol;
+    if (!isOpen(socket) || !containsMatchingQuote(payload, symbol)) return false;
+
+    const changed = activeSocket !== socket;
+    activeSocket = socket;
+    if (changed) {
+      post("history-stream-detected", {
+        event: source || "raw-quote-payload",
+        endpoint: socketLabels.get(socket) || "unknown",
+        readyState: socket.readyState
+      });
+    }
+    flushPendingRequest();
+    return true;
+  }
+
   function decodeTextFrame(text, socket) {
     if (typeof text !== "string") return;
 
@@ -77,6 +110,15 @@
           expected: attachmentCount,
           parts: []
         });
+      } catch (_) {}
+      return;
+    }
+
+    // Some live quote packets are delivered as plain JSON frames, not Socket.IO events.
+    if (text.startsWith("[") || text.startsWith("{")) {
+      try {
+        const payload = JSON.parse(text);
+        if (recognizeRawQuoteStream(socket, payload, "plain-json-quote-frame")) return;
       } catch (_) {}
     }
   }
@@ -141,7 +183,11 @@
 
     // Some Pocket Option servers send the history result as a standalone
     // binary JSON WebSocket frame, without a preceding Socket.IO attachment header.
-    acceptStandaloneHistoryResult(decoded, socket, "binary-result");
+    if (acceptStandaloneHistoryResult(decoded, socket, "binary-result")) return;
+
+    // Mirror the working Quote Bridge: recognize the selected asset's raw
+    // [symbol, timestamp, price] tuples even when they arrive in binary frames.
+    recognizeRawQuoteStream(socket, decoded, "binary-quote-frame");
   }
 
   const PAGE_CANDLE_LIMIT = 150;
