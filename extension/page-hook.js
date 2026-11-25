@@ -52,6 +52,13 @@
       return;
     }
 
+    // Some servers return a standalone JSON history result as a text frame.
+    if (text.startsWith("{")) {
+      try {
+        if (acceptStandaloneHistoryResult(JSON.parse(text), socket, "json-result")) return;
+      } catch (_) {}
+    }
+
     // Socket.IO binary event header: 451-[...], followed by one or more
     // separate WebSocket binary message frames.
     const binaryMatch = text.match(/^45(\d+)-([\s\S]+)$/);
@@ -89,6 +96,27 @@
     }
   }
 
+  function acceptStandaloneHistoryResult(result, socket, source) {
+    const request = inFlight;
+    if (!request || request.socket !== socket ||
+        !result || typeof result !== "object" || Array.isArray(result)) return false;
+
+    const resultIndex = Number(result.index);
+    const requestIndex = Number(request.item.payload.index);
+    const rows = extractRows(result);
+    if (!Number.isFinite(resultIndex) || resultIndex !== requestIndex ||
+        !Array.isArray(rows)) return false;
+
+    inFlight = null;
+    post("history-response-received", {
+      event: source,
+      rows: rows.length,
+      index: resultIndex
+    });
+    acceptHistoryPage(request.item, result, source);
+    return true;
+  }
+
   async function inspect(data, socket) {
     if (typeof data === "string") {
       decodeTextFrame(data, socket);
@@ -96,17 +124,23 @@
     }
 
     const state = pendingBinary.get(socket);
-    if (!state) return;
+    const decoded = await readBinary(data);
+    if (decoded === null) return;
 
-    const part = await readBinary(data);
-    if (part === null) return;
-    state.parts.push(part);
-
-    if (state.parts.length >= state.expected) {
-      pendingBinary.delete(socket);
-      const payload = replacePlaceholders(state.packet[1], state.parts);
-      handlePacket([state.packet[0], payload], socket);
+    // First handle Socket.IO binary-event attachments (45x-...).
+    if (state) {
+      state.parts.push(decoded);
+      if (state.parts.length >= state.expected) {
+        pendingBinary.delete(socket);
+        const payload = replacePlaceholders(state.packet[1], state.parts);
+        handlePacket([state.packet[0], payload], socket);
+      }
+      return;
     }
+
+    // Some Pocket Option servers send the history result as a standalone
+    // binary JSON WebSocket frame, without a preceding Socket.IO attachment header.
+    acceptStandaloneHistoryResult(decoded, socket, "binary-result");
   }
 
   const PAGE_CANDLE_LIMIT = 150;
@@ -312,7 +346,7 @@
           }
           flushPendingRequest();
         }
-      }, 9000);
+      }, 30000);
     } catch (_) {
       pendingRequest = item;
       inFlight = null;
@@ -346,8 +380,13 @@
       if (payload && typeof payload === "object") {
         const request = inFlight;
         inFlight = null;
-        if (request) acceptHistoryPage(request.item, payload, name);
-        else flushPendingRequest();
+        if (request) {
+          const rows = extractRows(payload);
+          post("history-response-received", { event: name, rows: rows.length });
+          acceptHistoryPage(request.item, payload, name);
+        } else {
+          flushPendingRequest();
+        }
       }
     }
   }
