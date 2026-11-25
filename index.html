@@ -710,8 +710,11 @@
       note.textContent=bt.signals<30?'Малая выборка: нужно больше сигналов. Ничьи исключены из доли верных.':'Тест рассчитан по доступным анализатору свечам; автоматическая загрузка 90-дневного архива отключена. Диагностика показывает группы условий, а не доказывает причинность. Выплата и задержки исполнения не учтены.';
     }
     function updateCountdown(stamp){
-      const period=Number(tf.value),remaining=period-(stamp%period);
-      document.getElementById('countdown').textContent=remaining+' с';
+      const period=Number(tf.value);
+      if(!Number.isFinite(period)||period<=0||!Number.isFinite(stamp))return;
+      const elapsed=((stamp%period)+period)%period;
+      const remaining=Math.max(0,period-elapsed);
+      document.getElementById('countdown').textContent=remaining.toFixed(2).replace('.',',')+' с';
     }
     window.addEventListener('resize',()=>drawChart());
     renderTimingStudy();
