@@ -36,7 +36,7 @@
       <div class="field"><label for="pair">Валютная пара</label><select id="pair"><option>EURUSD_otc</option><option>GBPUSD_otc</option><option>USDJPY_otc</option><option>AUDCAD_otc</option><option>EURGBP_otc</option></select></div>
       <div class="field"><label for="timeframe">Таймфрейм свечи</label><select id="timeframe"><option value="60">M1</option><option value="120">M2</option><option value="300">M5</option><option value="900">M15</option></select></div>
       <div class="field"><label for="expiry">Экспирация</label><select id="expiry"><option value="30">30 секунд</option><option value="60" selected>1 минута</option><option value="120">2 минуты</option><option value="300">5 минут</option></select></div>
-      <div class="field"><label for="lead">Момент сигнала до закрытия</label><select id="lead"><option value="5">За 5 секунд</option><option value="7" selected>За 7 секунд</option><option value="10">За 10 секунд</option></select></div>
+      <div class="field"><label for="lead">Момент сигнала до закрытия</label><select id="lead"><option value="3">За 3 секунды</option><option value="5">За 5 секунд</option><option value="7" selected>За 7 секунд</option><option value="10">За 10 секунд</option></select></div>
     </section>
     <section class="grid">
       <article class="card">
@@ -72,7 +72,8 @@
           <div class="stat"><span>Сигналов в сессии</span><b id="signalCount">0</b></div>
         </div>
         <div class="analysis-details"><h3>Факторы решения</h3><ul id="signalFactors"><li>Ожидание данных</li></ul></div>
-        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8" selected>80%</option><option value="0.85">85%</option><option value="0.9">90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><div id="btModels" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Сравнение торговых моделей: ожидание истории</div></div><div id="btRisk" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Риск догонов: ожидание истории</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Расчёт по загруженным свечам. Это тест на истории, не гарантия результата.</p></div>
+        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9" selected>90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><div id="btModels" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Сравнение торговых моделей: ожидание истории</div></div><div id="btRisk" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Риск догонов: ожидание истории</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Расчёт по загруженным свечам. Это тест на истории, не гарантия результата.</p></div>
+        <div class="backtest" id="timingStudy"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><h3 style="margin:0;font-size:12px">Сравнение времени сигнала · live</h3><button type="button" id="exportTimingStudy" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт JSON</button></div><div style="display:grid;grid-template-columns:1fr;gap:8px"><div><b style="font-size:12px">За 7 секунд</b><div class="sub" id="timing7Summary">Ожидание наблюдений</div></div><div style="border-top:1px solid #263650;padding-top:7px"><b style="font-size:12px">За 3 секунды</b><div class="sub" id="timing3Summary">Ожидание наблюдений</div></div></div><p class="sub" id="timingStudyNote" style="margin:8px 0 0">Параллельная запись начинается после подключения живых котировок. Архив OHLC не используется для выдумывания внутриминутных цен.</p></div>
         <p class="sub" style="margin-top:10px">* Сила — внутренняя оценка согласованности факторов, не статистическая вероятность выигрыша.</p>
       </aside>
     </section>
@@ -117,6 +118,158 @@
     let activeSignal=null,signalCount=0;
     const signalLog=[];
 
+    // Live timing experiment: compare independently captured 7s and 3s forecasts.
+    // The snapshots and their outcomes are persisted locally; this does not change the active signal.
+    const TIMING_STUDY_STORAGE_KEY='pocketAnalyzerTimingStudy:v1';
+    const TIMING_STUDY_LEADS=[7,3];
+    const TIMING_STUDY_LIMIT=5000;
+    function loadTimingStudy(){
+      try{
+        const saved=JSON.parse(localStorage.getItem(TIMING_STUDY_STORAGE_KEY)||'[]');
+        return Array.isArray(saved)?saved.filter(x=>x&&typeof x==='object'):[];
+      }catch(_){return [];}
+    }
+    const timingStudyLog=loadTimingStudy();
+    const timingPending=timingStudyLog.filter(x=>x.status==='pending');
+    const timingCaptureBuckets=Object.create(null);
+    const timingNextEligibleAt=Object.create(null);
+    function timingStudyKey(lead,market=pair.value,timeframe=Number(tf.value),expiry=Number(document.getElementById('expiry').value)){
+      return [market,timeframe,expiry,lead].join('|');
+    }
+    timingPending.forEach(row=>{
+      if(row.key)timingNextEligibleAt[row.key]=Math.max(timingNextEligibleAt[row.key]||0,Number(row.expiresAt)||0);
+    });
+    function saveTimingStudy(){
+      try{
+        if(timingStudyLog.length>TIMING_STUDY_LIMIT){
+          const excess=timingStudyLog.length-TIMING_STUDY_LIMIT;
+          let removed=0;
+          for(let i=0;i<timingStudyLog.length&&removed<excess;){
+            if(timingStudyLog[i].status!=='pending'){timingStudyLog.splice(i,1);removed++;}
+            else i++;
+          }
+        }
+        localStorage.setItem(TIMING_STUDY_STORAGE_KEY,JSON.stringify(timingStudyLog));
+      }catch(_){
+        const note=document.getElementById('timingStudyNote');
+        if(note)note.textContent='Не удалось сохранить журнал в браузере. Используйте экспорт JSON; проверьте свободное место хранилища.';
+      }
+    }
+    function getTimingSummary(lead){
+      const expiry=Number(document.getElementById('expiry').value);
+      const rows=timingStudyLog.filter(x=>x.pair===pair.value&&Number(x.timeframeSeconds)===Number(tf.value)&&Number(x.expirySeconds)===expiry&&Number(x.targetLeadSeconds)===lead);
+      const signals=rows.filter(x=>x.direction==='UP'||x.direction==='DOWN');
+      const resolved=signals.filter(x=>x.status==='settled').sort((a,b)=>a.entryTime-b.entryTime);
+      // A quote arriving more than one second after the target expiry is retained,
+      // but excluded from win-rate/EV and breaks the streak sequence as uncertain.
+      const delayed=resolved.filter(x=>Number(x.settlementDelaySeconds)>1);
+      const ties=resolved.filter(x=>x.outcome==='tie'&&Number(x.settlementDelaySeconds)<=1);
+      const decisive=resolved.filter(x=>(x.outcome==='win'||x.outcome==='loss')&&Number(x.settlementDelaySeconds)<=1);
+      const wins=decisive.filter(x=>x.outcome==='win').length;
+      const losses=decisive.length-wins;
+      let current=0,max=0,streak3=0,streak4=0,streak5=0;
+      const closeStreak=()=>{
+        if(current>=3)streak3++;
+        if(current>=4)streak4++;
+        if(current>=5)streak5++;
+        current=0;
+      };
+      for(const trade of resolved){
+        if(Number(trade.settlementDelaySeconds)>1||trade.outcome==='tie'||trade.outcome==='win')closeStreak();
+        else if(trade.outcome==='loss'){current++;max=Math.max(max,current);}
+      }
+      closeStreak();
+      const net=decisive.reduce((sum,x)=>sum+(x.outcome==='win'?Number(x.payoutRate??0.9):-1),0);
+      return {
+        captured:rows.length,signals:signals.length,pending:signals.filter(x=>x.status==='pending').length,
+        skipped:rows.filter(x=>x.status==='skipped-overlap').length,noSignal:rows.filter(x=>x.status==='no-signal').length,
+        resolved:resolved.length,settled:decisive.length,ties:ties.length,delayed:delayed.length,
+        wins,losses,winRate:decisive.length?wins/decisive.length*100:null,
+        ev:decisive.length?net/decisive.length:null,maxStreak:max,streak3,streak4,streak5
+      };
+    }
+    function renderTimingStudy(){
+      const render=(lead,id)=>{
+        const s=getTimingSummary(lead);
+        const rate=s.winRate==null?'—':s.winRate.toFixed(2)+'%';
+        const ev=s.ev==null?'—':(s.ev>=0?'+':'')+(s.ev*100).toFixed(2)+'%';
+        document.getElementById(id).textContent=
+          'Снимков '+s.captured+' · сигналов '+s.signals+' · исходов '+s.resolved+
+          ' · учтено '+s.settled+' · победы '+s.wins+'/'+s.losses+' · точность '+rate+' · EV '+ev+
+          ' · макс. серия '+s.maxStreak+' · серии 3+/4+/5+: '+s.streak3+'/'+s.streak4+'/'+s.streak5+
+          ' · ничьи '+s.ties+' · задержка >1с '+s.delayed+' · ожидают '+s.pending+' · пропущено из-за занятой сделки '+s.skipped;
+      };
+      render(7,'timing7Summary');
+      render(3,'timing3Summary');
+      const note=document.getElementById('timingStudyNote');
+      if(note)note.textContent='Текущая выборка: '+pair.value+' · M'+(Number(tf.value)/60)+' · экспирация '+Number(document.getElementById('expiry').value)+' с · выплата '+Math.round(Number(document.getElementById('payout').value)*100)+'%. Для точности в расчёт win rate и EV входят только исходы, закрытые первой котировкой не позднее 1 секунды после экспирации; задержанные исходы сохраняются отдельно.';
+    }
+    function captureTimingSnapshots(stamp,price){
+      const period=Number(tf.value),remaining=period-(stamp%period);
+      if(!window.PocketAnalysis||candles.length<60)return;
+      for(const lead of TIMING_STUDY_LEADS){
+        const key=timingStudyKey(lead);
+        if(timingCaptureBuckets[key]===lastBucket)continue;
+        // A narrow capture window prevents a late quote from being mislabeled as a 7s/3s sample.
+        if(remaining>lead||remaining<Math.max(0,lead-2))continue;
+        timingCaptureBuckets[key]=lastBucket;
+        const duplicate=timingStudyLog.some(x=>x.pair===pair.value&&Number(x.timeframeSeconds)===period&&Number(x.expirySeconds)===Number(document.getElementById('expiry').value)&&Number(x.candleTime)===Number(lastBucket)&&Number(x.targetLeadSeconds)===lead);
+        if(duplicate)continue;
+        const result=PocketAnalysis.evaluate(candles,period);
+        const expiry=Number(document.getElementById('expiry').value);
+        const payoutRate=Number(document.getElementById('payout').value);
+        const direction=result.ready?result.direction:'NONE';
+        const row={
+          pair:pair.value,timeframeSeconds:period,expirySeconds:expiry,targetLeadSeconds:lead,
+          actualLeadSeconds:Number(remaining.toFixed(3)),candleTime:Number(lastBucket),
+          entryTime:Number(stamp),entryPrice:Number(price),expiresAt:Number(stamp)+expiry,
+          direction:direction==='UP'||direction==='DOWN'?direction:'NONE',
+          confidence:result.ready?result.confidence:null,score:result.ready?result.score:null,
+          payoutRate,features:result.ready?result.features:null,pattern:result.ready?result.pattern:null,
+          status:'no-signal',outcome:null,settlementPrice:null,settledAt:null,settlementDelaySeconds:null
+        };
+        row.key=key;
+        if(row.direction==='UP'||row.direction==='DOWN'){
+          const busyUntil=timingNextEligibleAt[key]||0;
+          if(Number(stamp)<busyUntil){
+            row.status='skipped-overlap';
+          }else{
+            row.status='pending';
+            timingPending.push(row);
+            timingNextEligibleAt[key]=row.expiresAt;
+          }
+        }
+        timingStudyLog.push(row);
+      }
+      saveTimingStudy();
+      renderTimingStudy();
+    }
+    function settleTimingPredictions(stamp,price){
+      let changed=false;
+      for(let i=timingPending.length-1;i>=0;i--){
+        const row=timingPending[i];
+        if(row.pair!==pair.value||Number(row.timeframeSeconds)!==Number(tf.value)||Number(stamp)<Number(row.expiresAt))continue;
+        const delta=Number(price)-Number(row.entryPrice);
+        row.settlementPrice=Number(price);
+        row.settledAt=Number(stamp);
+        row.settlementDelaySeconds=Number((Number(stamp)-Number(row.expiresAt)).toFixed(3));
+        row.outcome=Math.abs(delta)<1e-12?'tie':(row.direction==='UP'?(delta>0?'win':'loss'):(delta<0?'win':'loss'));
+        row.status='settled';
+        timingPending.splice(i,1);
+        changed=true;
+      }
+      if(changed){saveTimingStudy();renderTimingStudy();}
+    }
+    function exportTimingStudy(){
+      const payload={schema:'PocketAnalyzerTimingStudy.v1',exportedAt:new Date().toISOString(),records:timingStudyLog};
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='PocketAnalyzer_timing_study_'+Date.now()+'.json';
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }
+
     function setStatus(text,connected=false){
       connection.textContent='● '+text;
       connection.style.color=connected?'#20c997':'#f4c15d';
@@ -131,15 +284,16 @@
       candleSpacing=DEFAULT_CANDLE_SPACING;
       chartViewStart=0;chartFollowLatest=true;
       document.getElementById("historyStatus").textContent="История: загрузка…";
-      drawChart();updateIndicators();
+      drawChart();updateIndicators();renderTimingStudy();
       priceEl.textContent='—';quoteState.textContent='Ожидание котировок выбранной пары';
       chartMessage.innerHTML='<b>Накопление котировок</b><br><span class="sub">Свечной график появится после формирования свечей</span>';
       chartMessage.style.display='grid';
     }
     pair.addEventListener('change',updateSelection);
     tf.addEventListener('change',updateSelection);
-    document.getElementById('expiry').addEventListener('change',updateBacktest);
-    document.getElementById('payout').addEventListener('change',updateBacktest);
+    document.getElementById('expiry').addEventListener('change',()=>{updateBacktest();renderTimingStudy();});
+    document.getElementById('payout').addEventListener('change',()=>{updateBacktest();renderTimingStudy();});
+    document.getElementById('exportTimingStudy').addEventListener('click',exportTimingStudy);
 
     function decodeQuote(value){
       if(Array.isArray(value)&&value.length&&Array.isArray(value[0])) value=value[0];
@@ -211,6 +365,7 @@
     }
 
     function addTick(stamp,price){
+      settleTimingPredictions(stamp,price);
       const seconds=Number(tf.value),bucket=Math.floor(stamp/seconds)*seconds;
       if(lastBucket!==null&&bucket!==lastBucket){activeSignal=null;lastSignalBucket=null;}
       if(lastBucket===null||bucket!==lastBucket){
@@ -223,7 +378,7 @@
       }
       chartMessage.style.display=candles.length>=2?'none':'grid';
       if(candles.length<2) chartMessage.innerHTML='<b>Формирование свечей</b><br><span class="sub">Получено свечей: '+candles.length+'</span>';
-      drawChart();updateIndicators();updateCountdown(stamp);updateLiveSignal(stamp);
+      drawChart();updateIndicators();updateCountdown(stamp);captureTimingSnapshots(stamp,price);updateLiveSignal(stamp);
     }
 
     function chartGeometry(){
@@ -561,6 +716,7 @@
       document.getElementById('countdown').textContent=remaining+' с';
     }
     window.addEventListener('resize',()=>drawChart());
+    renderTimingStudy();
     setStatus('Ожидание расширения Chrome');
     quoteState.textContent='Откройте Pocket Option в соседней вкладке. Расширение передаст котировки сюда.';
     window.addEventListener('message',event=>{
