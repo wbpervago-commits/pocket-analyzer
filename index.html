@@ -88,6 +88,9 @@
     const canvas=document.getElementById('candleChart');
     const ctx=canvas.getContext('2d');
     const candles=[];
+    // Full historical archive; the chart/live engine uses only the latest 2,000 bars.
+    const historyArchive=[];
+    const DISPLAY_CANDLE_LIMIT=2000;
     const DEFAULT_CANDLE_SPACING=8,MIN_CANDLE_SPACING=3.5,MAX_CANDLE_SPACING=18;
     let candleSpacing=DEFAULT_CANDLE_SPACING;
     let chartViewStart=0,chartFollowLatest=true;
@@ -103,7 +106,7 @@
     }
     function updateSelection(){
       document.getElementById('selectedPair').textContent=pair.value+' · '+tf.options[tf.selectedIndex].text;
-      candles.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;activeSignal=null;signalCount=0;signalLog.length=0;
+      candles.length=0;historyArchive.length=0;lastBucket=null;lastPrice=null;lastSignalBucket=null;historyRequestedKey=null;activeSignal=null;signalCount=0;signalLog.length=0;
       document.getElementById('signalCount').textContent='0';
       renderSignal('WAIT',null,'Ожидаем данные и окно формирования сигнала.',[]);updateBacktest();
       candleSpacing=DEFAULT_CANDLE_SPACING;
@@ -164,20 +167,23 @@
         if(c&&Number.isFinite(c.time)&&Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low)&&Number.isFinite(c.close))historical.push(c);
       }
       if(!historical.length)return;
-      const byTime=new Map(historical.map(c=>[c.time,c]));
+      const byTime=new Map(historyArchive.map(c=>[c.time,c]));
+      for(const c of historical)byTime.set(c.time,c);
       for(const live of candles){
         const old=byTime.get(live.time);
         if(old)byTime.set(live.time,{time:live.time,open:old.open,high:Math.max(old.high,live.high),low:Math.min(old.low,live.low),close:live.close});
         else byTime.set(live.time,live);
       }
-      const merged=[...byTime.values()].sort((a,b)=>a.time-b.time).slice(-2000);
-      candles.splice(0,candles.length,...merged);
+      const merged=[...byTime.values()].sort((a,b)=>a.time-b.time);
+      historyArchive.splice(0,historyArchive.length,...merged);
+      const visible=historyArchive.slice(-DISPLAY_CANDLE_LIMIT);
+      candles.splice(0,candles.length,...visible);
       chartFollowLatest=true;chartViewStart=maxChartStart();
       lastBucket=candles[candles.length-1].time;
       chartMessage.style.display="none";
-      const oldest=candles[0]?.time||0,newest=candles[candles.length-1]?.time||0;
+      const oldest=historyArchive[0]?.time||0,newest=historyArchive[historyArchive.length-1]?.time||0;
       const spanHours=oldest&&newest?Math.max(0,(newest-oldest)/3600):0;
-      document.getElementById("historyStatus").textContent="История: "+candles.length+" свечей · "+spanHours.toFixed(1)+" ч";
+      document.getElementById("historyStatus").textContent="Архив: "+historyArchive.length+" свечей · "+spanHours.toFixed(1)+" ч · график: "+candles.length;
       drawChart();updateIndicators();updateBacktest();
     }
 
@@ -186,8 +192,8 @@
       if(lastBucket!==null&&bucket!==lastBucket){activeSignal=null;lastSignalBucket=null;}
       if(lastBucket===null||bucket!==lastBucket){
         const candle={time:bucket,open:price,high:price,low:price,close:price};
-        candles.push(candle);lastBucket=bucket;
-        if(candles.length>2000)candles.shift();
+        candles.push(candle);historyArchive.push(candle);lastBucket=bucket;
+        if(candles.length>DISPLAY_CANDLE_LIMIT)candles.shift();
       }else{
         const c=candles[candles.length-1];
         c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;
