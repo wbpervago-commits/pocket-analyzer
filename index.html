@@ -175,7 +175,8 @@
         else byTime.set(live.time,live);
       }
       const merged=[...byTime.values()].sort((a,b)=>a.time-b.time);
-      historyArchive.splice(0,historyArchive.length,...merged);
+      historyArchive.length=0;
+      for(const candle of merged)historyArchive.push(candle);
       const visible=historyArchive.slice(-DISPLAY_CANDLE_LIMIT);
       candles.splice(0,candles.length,...visible);
       chartFollowLatest=true;chartViewStart=maxChartStart();
