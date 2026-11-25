@@ -3,7 +3,25 @@
   const APP_MARKER = "POCKET_ANALYZER_QUOTE_BRIDGE";
   const analyzerHost = "wbpervago-commits.github.io";
   const isAnalyzer = location.hostname === analyzerHost;
-  const runtimeAvailable = () => !!(globalThis.chrome && chrome.runtime && chrome.runtime.id);
+  const runtimeAvailable = () => {
+    try { return !!(globalThis.chrome && chrome.runtime && chrome.runtime.id); }
+    catch (_) { return false; }
+  };
+  const sendRuntimeMessage = message => new Promise(resolve => {
+    if (!runtimeAvailable()) {
+      resolve({ ok: false, reason: "extension-context-unavailable" });
+      return;
+    }
+    try {
+      const pending = chrome.runtime.sendMessage(message);
+      Promise.resolve(pending).then(
+        response => resolve({ ok: true, response }),
+        () => resolve({ ok: false, reason: "runtime-message-rejected" })
+      );
+    } catch (_) {
+      resolve({ ok: false, reason: "extension-context-invalidated" });
+    }
+  });
 
   if (isAnalyzer) {
     if (!runtimeAvailable()) return;
@@ -65,7 +83,7 @@
       if (!runtimeAvailable()) return;
       const statusEl = document.getElementById("historyStatus");
       if (statusEl) statusEl.textContent = "История: передаю запрос в Pocket Option…";
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         type: "POCKET_ANALYZER_HISTORY_REQUEST",
         request: {
           symbol: event.data.symbol,
@@ -73,10 +91,11 @@
           count: event.data.count,
           stamp: event.data.stamp
         }
-      }).then(() => {
-        if (statusEl) statusEl.textContent = "История: запрос передан, жду ответ страницы…";
-      }).catch(() => {
-        if (statusEl) statusEl.textContent = "История: ошибка связи расширения";
+      }).then(result => {
+        if (!statusEl) return;
+        statusEl.textContent = result.ok
+          ? "История: запрос передан, жду ответ страницы…"
+          : "История: контекст расширения обновлён · перезагрузите вкладку Pocket Option";
       });
     });
     return;
@@ -88,12 +107,12 @@
 
     if (event.data.kind === "history" && event.data.history) {
       if (!runtimeAvailable()) return;
-      chrome.runtime.sendMessage({
+      void sendRuntimeMessage({
         type: "POCKET_ANALYZER_HISTORY",
         history: event.data.history,
         symbol: event.data.symbol,
         period: event.data.period
-      }).catch(() => {});
+      });
     }
 
     if (event.data.kind === "bridge-status") {
@@ -102,7 +121,7 @@
         : event.data.status === "history-send-failed"
           ? "send-failed"
           : event.data.status;
-      chrome.runtime.sendMessage({
+      void sendRuntimeMessage({
         type: "POCKET_ANALYZER_HISTORY_STATUS",
         status,
         details: {
@@ -118,7 +137,7 @@
           pageCandles: event.data.pageCandles,
           maxPages: event.data.maxPages
         }
-      }).catch(() => {});
+      });
     }
   });
 
