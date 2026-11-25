@@ -41,10 +41,10 @@
           "history-page-received": "История: пакет " + (d.page ?? "?") + "/" + (d.expectedPages ?? "?") + " · получено " + (d.totalRows ?? d.rows ?? "?") + " свечей",
           "history-page-next": "История: загружаем следующий пакет · уже " + (d.rows ?? "?") + " свечей",
           "history-complete": "История: целевой период собран · " + (d.rows ?? "?") + " свечей",
-          "history-incomplete": "История: загружена только часть периода · " + (d.rows ?? "?") + " свечей",
+          "history-incomplete": "История: загрузка не завершена · " + (d.rows ?? 0) + " свечей" + (d.reason ? " · " + d.reason : ""),
           "history-request-superseded": "История: старый запрос отменён · отправляется новый",
           "history-timeout": "История: Pocket Option не ответил на запрос",
-          "history-incomplete": "История: загрузка не завершена · " + (d.rows ?? 0) + " свечей" + (d.reason ? " · " + d.reason : ""),
+
           "history-invalid-request": "История: некорректные параметры запроса",
           "pocket-tab-not-found": "История: откройте вкладку Pocket Option",
           "pocket-tab-bridge-unavailable": "История: расширение не подключено к вкладке Pocket Option",
