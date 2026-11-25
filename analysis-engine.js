@@ -164,15 +164,76 @@
     return { direction: closes[last] > e20[last] && slope > 0 ? 1 : closes[last] < e20[last] && slope < 0 ? -1 : 0, bars: bars.length, seconds: higherSeconds };
   }
 
-  function evaluate(candles, timeframeSeconds = 60) {
-    const n = candles.length;
-    if (n < 60) return { ready: false, reason: 'Для анализа нужно минимум 60 свечей', score: 0, direction: 'NONE', confidence: null };
+
+  // Build indicator arrays once for a full historical pass. Each indicator is causal:
+  // the value at index i depends only on candles at or before i.
+  function buildHigherTimeframeTrendSeries(candles, timeframeSeconds) {
+    const factor = timeframeSeconds === 60 ? 5 : timeframeSeconds === 120 ? 3 : timeframeSeconds === 300 ? 3 : 4;
+    const higherSeconds = timeframeSeconds * factor;
+    const groups = new Map();
+    for (const c of candles) {
+      const key = Math.floor(c.time / higherSeconds);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    }
+    const bars = [...groups.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .filter(([, rows]) => rows.length === factor)
+      .map(([key, rows]) => ({ key, close: rows[rows.length - 1].close }));
+    const closes = bars.map(x => x.close);
+    const e20 = emaSeries(closes, 20);
+    const out = Array(candles.length).fill(null);
+    let pointer = -1;
+    for (let i = 0; i < candles.length; i++) {
+      const currentGroup = Math.floor(candles[i].time / higherSeconds);
+      while (pointer + 1 < bars.length && bars[pointer + 1].key < currentGroup) pointer++;
+      if (i + 1 < factor * 20 || pointer + 1 < 22 || e20[pointer] == null) continue;
+      const slope = e20[pointer] - e20[pointer - 3];
+      out[i] = {
+        direction: closes[pointer] > e20[pointer] && slope > 0 ? 1 :
+          closes[pointer] < e20[pointer] && slope < 0 ? -1 : 0,
+        bars: pointer + 1,
+        seconds: higherSeconds
+      };
+    }
+    return out;
+  }
+
+  function buildAnalysisCache(candles, timeframeSeconds = 60) {
     const closes = candles.map(c => c.close);
-    const e9 = emaSeries(closes, 9), e21 = emaSeries(closes, 21), e50 = emaSeries(closes, 50);
-    const rs = rsiSeries(closes), mc = macdSeries(closes), bb = bandsSeries(closes), st = stochasticSeries(candles), atr = atrSeries(candles), adx = adxSeries(candles);
-    const i = n - 1, c = candles[i], p = candles[i - 1];
+    const mc = macdSeries(closes);
+    const st = stochasticSeries(candles);
+    return {
+      e9: emaSeries(closes, 9),
+      e21: emaSeries(closes, 21),
+      e50: emaSeries(closes, 50),
+      rs: rsiSeries(closes),
+      mc,
+      bb: bandsSeries(closes),
+      st,
+      atr: atrSeries(candles),
+      adx: adxSeries(candles),
+      higherTrend: buildHigherTimeframeTrendSeries(candles, timeframeSeconds)
+    };
+  }
+
+  function evaluate(candles, timeframeSeconds = 60, prepared = null, indexOverride = null) {
+    const i = Number.isInteger(indexOverride) ? indexOverride : candles.length - 1;
+    const n = i + 1;
+    if (n < 60) return { ready: false, reason: 'Для анализа нужно минимум 60 свечей', score: 0, direction: 'NONE', confidence: null };
+    const closes = prepared ? null : candles.slice(0, n).map(c => c.close);
+    const e9 = prepared ? prepared.e9 : emaSeries(closes, 9);
+    const e21 = prepared ? prepared.e21 : emaSeries(closes, 21);
+    const e50 = prepared ? prepared.e50 : emaSeries(closes, 50);
+    const rs = prepared ? prepared.rs : rsiSeries(closes);
+    const mc = prepared ? prepared.mc : macdSeries(closes);
+    const bb = prepared ? prepared.bb : bandsSeries(closes);
+    const st = prepared ? prepared.st : stochasticSeries(candles.slice(0, n));
+    const atr = prepared ? prepared.atr : atrSeries(candles.slice(0, n));
+    const adx = prepared ? prepared.adx : adxSeries(candles.slice(0, n));
+    const c = candles[i], p = candles[i - 1];
     const pattern = candlePattern(c, p);
-    const higherTrend = higherTimeframeTrend(candles, timeframeSeconds);
+    const higherTrend = prepared ? prepared.higherTrend[i] : higherTimeframeTrend(candles.slice(0, n), timeframeSeconds);
     let score = 0;
     const factors = [];
     const add = (v, label) => { score += v; if (v) factors.push({ value: v, label }); };
@@ -292,6 +353,7 @@
     const groups = {};
     const outcomes = [], nonOverlappingOutcomes = [];
     let nextNonOverlappingIndex = 59;
+    const prepared = buildAnalysisCache(candles, timeframeSeconds);
     const addGroup = (key, result, win, tie) => {
       const g = groups[key] || (groups[key] = { signals: 0, wins: 0, losses: 0, ties: 0 });
       g.signals++;
@@ -300,7 +362,7 @@
       else g.losses++;
     };
     for (let i = 59; i + step < candles.length; i++) {
-      const result = evaluate(candles.slice(0, i + 1), timeframeSeconds);
+      const result = evaluate(candles, timeframeSeconds, prepared, i);
       if (result.direction === 'NONE') continue;
       const entry = candles[i + 1].open, exit = candles[i + step].close;
       const tie = Math.abs(exit - entry) < 1e-12;
