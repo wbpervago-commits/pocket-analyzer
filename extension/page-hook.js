@@ -253,7 +253,12 @@
       expectedPages: session.maxPages,
       rows: session.rows.size
     });
-    flushPendingRequest();
+
+    // Pocket Option history requests are session-throttled; keep at least
+    // 200 ms between page requests so a long 90-day download remains reliable.
+    window.setTimeout(() => {
+      if (pendingRequest?.session === session) flushPendingRequest();
+    }, 200);
   }
 
   function acceptHistoryPage(item, payload, eventName) {
