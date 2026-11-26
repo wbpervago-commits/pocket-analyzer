@@ -97,6 +97,23 @@
             <button type="button" id="exportShockExperiment" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт результатов JSON</button>
           </div>
         </div>
+        <div class="backtest" id="microstructureCapture">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <h3 style="margin:0;font-size:12px">Высокочастотный сбор котировок · секундный слой</h3>
+            <span class="pill" style="border:1px solid #236c59;color:#20c997">СБОР ДАННЫХ</span>
+          </div>
+          <div class="sub" id="microCaptureStatus">Ожидаем поток котировок Pocket Option</div>
+          <div class="backtest-grid" style="margin-top:9px">
+            <div><b id="microCaptureBars">0</b><span>Секундных баров в архиве</span></div>
+            <div><b id="microCaptureQuotes">0</b><span>Обновлений в сессии</span></div>
+            <div><b id="microCaptureRate">0,0</b><span>Обновлений в секунду</span></div>
+          </div>
+          <p class="sub" id="microCaptureMoves" style="margin:8px 0 0">Изменения котировки: вверх — 0 · вниз — 0 · без изменения — 0</p>
+          <p class="sub" style="margin:6px 0 0">Сохраняются секундные OHLC, частота сообщений и направление изменения одиночной котировки. Это не биржевой объём и не глубина заявок. Срок хранения — 7 дней.</p>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button type="button" id="exportMicroCapture" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт последних 24 часов</button>
+          </div>
+        </div>
         <div class="backtest" id="timingStudy"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><h3 style="margin:0;font-size:12px">Сравнение времени сигнала · live</h3><button type="button" id="exportTimingStudy" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт JSON</button></div><div style="display:grid;grid-template-columns:1fr;gap:8px"><div><b style="font-size:12px">За 7 секунд</b><div class="sub" id="timing7Summary">Ожидание наблюдений</div></div><div style="border-top:1px solid #263650;padding-top:7px"><b style="font-size:12px">За 3 секунды</b><div class="sub" id="timing3Summary">Ожидание наблюдений</div></div></div><p class="sub" id="timingStudyNote" style="margin:8px 0 0">Параллельная запись начинается после подключения живых котировок. Архив OHLC не используется для выдумывания внутриминутных цен.</p></div>
         <p class="sub" style="margin-top:10px">* Сила — внутренняя оценка согласованности факторов, не статистическая вероятность выигрыша.</p>
       </aside>
@@ -105,11 +122,31 @@
   </main>
   <script src="analysis-engine.js"></script>
   <script src="experimental-strategy.js"></script>
+  <script src="microstructure-capture.js"></script>
   <script>
     const pair=document.getElementById('pair'),tf=document.getElementById('timeframe');
     const connection=document.getElementById('connection');
     const priceEl=document.getElementById('price');
     const quoteState=document.getElementById('quoteState');
+    const microCapture=window.PocketMicroCapture.create({
+      onUpdate:stats=>{
+        const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+        set('microCaptureStatus',(stats.active?'Сбор активен':'Ожидаем live-котировки')+' · '+stats.symbol+' · архив '+stats.retentionDays+' дн.');
+        set('microCaptureBars',stats.archiveBars.toLocaleString('ru-RU'));
+        set('microCaptureQuotes',stats.sessionQuotes.toLocaleString('ru-RU'));
+        set('microCaptureRate',stats.quotesPerSecond.toFixed(1).replace('.',','));
+        set('microCaptureMoves','Изменения котировки: вверх — '+stats.upMoves.toLocaleString('ru-RU')+' · вниз — '+stats.downMoves.toLocaleString('ru-RU')+' · без изменения — '+stats.flatMoves.toLocaleString('ru-RU')+' · дисбаланс-прокси — '+(stats.imbalance===null?'—':(stats.imbalance*100).toFixed(1)+'%'));
+      }
+    });
+    void microCapture.setSymbol(pair.value);
+    document.getElementById('exportMicroCapture').addEventListener('click',async()=>{
+      const payload=await microCapture.exportLastHours(24);
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='PocketAnalyzer_microticks_'+pair.value+'_'+Date.now()+'.json';
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    });
     const chartMessage=document.getElementById('chartMessage');
     const canvas=document.getElementById('candleChart');
     const ctx=canvas.getContext('2d');
@@ -794,6 +831,7 @@
       chartMessage.style.display='grid';
     }
     pair.addEventListener('change',updateSelection);
+    pair.addEventListener('change',()=>{void microCapture.setSymbol(pair.value);});
     tf.addEventListener('change',updateSelection);
     document.getElementById('expiry').addEventListener('change',()=>{updateBacktest();renderTimingStudy();});
     document.getElementById('payout').addEventListener('change',()=>{updateBacktest();renderTimingStudy();});
@@ -807,6 +845,7 @@
       if(symbol!==pair.value)return;
       const stamp=window.PocketAnalysis.normalizeLiveQuoteTimestamp(rawStamp);
       if(stamp===null||!isValidCandleTime(stamp))return;
+      microCapture.onQuote(symbol,stamp,price);
       lastQuoteAt=stamp*1000;lastPrice=price;
       const decimals=symbol.includes('JPY')?3:5;
       priceEl.textContent=price.toFixed(decimals);
