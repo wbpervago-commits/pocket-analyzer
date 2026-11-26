@@ -72,7 +72,7 @@
           <div class="stat"><span>Сигналов в сессии</span><b id="signalCount">0</b></div>
         </div>
         <div class="analysis-details"><h3>Факторы решения</h3><ul id="signalFactors"><li>Ожидание данных</li></ul></div>
-        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9" selected>90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><div id="btModels" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Сравнение торговых моделей: ожидание истории</div></div><div id="btRisk" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Риск догонов: ожидание истории</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Автозагрузка 90-дневного архива отключена. Бэктест использует только доступные анализатору свечи.</p></div>
+        <div class="backtest"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px"><h3 style="margin:0;font-size:12px">Историческая проверка · walk-forward</h3><label class="sub">Выплата <select id="payout" style="background:#0c1627;color:var(--text);border:1px solid #30425e;border-radius:7px;padding:4px"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9" selected>90%</option><option value="0.95">95%</option></select></label></div><div class="backtest-grid"><div><b id="btRate">—</b><span>Доля верных</span></div><div><b id="btSignals">—</b><span>Сигналов</span></div><div><b id="btSample">—</b><span>Победы / поражения</span></div></div><p class="sub" id="btEdge" style="margin:8px 0 0">Ожидаемое значение: —</p><div id="btDiagnostics" style="margin-top:10px;border-top:1px solid #263650;padding-top:9px"><div class="sub" style="margin-bottom:6px">Диагностика фильтров: —</div></div><div id="btModels" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Сравнение торговых моделей: ожидание истории</div></div><div id="btRisk" style="margin-top:12px;border-top:1px solid #263650;padding-top:10px"><div class="sub">Риск догонов: ожидание истории</div></div><p class="sub" id="btNote" style="margin:8px 0 0">Видимый график использует последние 2 000 свечей; исследовательская модель отдельно хранит скрытый 21-дневный M1-архив.</p></div>
         <div class="backtest" id="shockExperiment">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
             <h3 style="margin:0;font-size:12px">Экспериментальная модель · M1 + M2</h3>
@@ -91,7 +91,8 @@
           <p class="sub" id="shockExperimentEdge" style="margin:8px 0 0">Победы / поражения · EV при выплате 90% · текущая серия: 0</p>
           <p class="sub" id="shockExperimentStreaks" style="margin:5px 0 0">Серии проигрышей: 2+ — 0 · 3+ — 0 · 4+ — 0 · 5+ — 0</p>
           <p class="sub" id="shockExperimentCalibration" style="margin:5px 0 0">Калибровка: 21 день · обновление раз в 7 дней</p>
-          <p class="sub" style="margin:5px 0 0">Контрольный редкий кандидат: 44 сигнала за 90 дней (0,02 в час). Цель 10–20 сигналов в час пока не достигнута.</p>
+          <p class="sub" style="margin:5px 0 0">Контрольный редкий кандидат: 44 сигнала за 90 дней (0,02/ч), 77,3% побед, максимум 2 проигрыша подряд.</p>
+          <p class="sub" style="margin:5px 0 0">Высокочастотный контроль M2: 13,0 сигналов/ч, 51,7% побед, EV −1,8%, максимум 10 проигрышей подряд; серий 2+/3+/4+/5+: 684/323/154/77. Пока не подходит для догона.</p>
           <div style="display:flex;justify-content:flex-end;margin-top:8px">
             <button type="button" id="exportShockExperiment" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт результатов JSON</button>
           </div>
@@ -310,6 +311,7 @@
     let strategyArchiveLoading=false;
     let strategyArchiveCacheChecked=false;
     let strategyArchiveRefreshRequested=false;
+    let strategyArchiveRetryAfter=0;
     let strategyLiveCandle=null;
     let strategyContext=null;
     let strategyCalibration=null;
@@ -452,6 +454,7 @@
       strategyArchiveLoading=false;
       strategyArchiveCacheChecked=false;
       strategyArchiveRefreshRequested=false;
+      strategyArchiveRetryAfter=0;
       strategyLiveCandle=null;
       strategyContext=null;
       strategyCalibration=null;
@@ -530,7 +533,8 @@
       const rows=Array.isArray(payload)?payload:(payload?.data||payload?.candles||payload?.history||[]);
       if(!Array.isArray(rows)||!rows.length){
         strategyArchiveLoading=false;
-        setShockArchiveStatus('Архив M1 не получен · проверь History Experiment');
+        strategyArchiveRetryAfter=Date.now()+5*60*1000;
+        setShockArchiveStatus('Архив M1 не получен · повтор через 5 минут');
         return;
       }
       const byTime=new Map(strategyArchive.map(c=>[c.time,c]));
@@ -556,6 +560,7 @@
       strategyContext=null;
       strategyArchiveLoading=false;
       strategyArchiveRefreshRequested=false;
+      strategyArchiveRetryAfter=0;
       strategyArchiveCacheChecked=true;
       const first=strategyArchive[0]?.time||0;
       const last=strategyArchive[strategyArchive.length-1]?.time||0;
@@ -580,6 +585,7 @@
     }
     function requestShockArchiveIfNeeded(stamp){
       if(strategyArchiveSymbol!==pair.value||!strategyArchiveCacheChecked||strategyArchiveLoading)return;
+      if(Date.now()<strategyArchiveRetryAfter)return;
       const key=pair.value+':'+tf.value;
       if(chartHistoryLoadedKey!==key)return;
       const version=String(historyExperimentVersion||'');
@@ -1263,7 +1269,11 @@
             event.data.status==='history-complete'?'Скрытый архив M1: получено '+(details.rows||'?')+' свечей · проверка качества':
             'Скрытый архив M1: '+event.data.status;
           setShockArchiveStatus(detailText);
-          if(event.data.status==='history-incomplete'||event.data.status==='history-timeout'||event.data.status==='send-failed')strategyArchiveLoading=false;
+          if(event.data.status==='history-incomplete'||event.data.status==='history-timeout'||event.data.status==='send-failed'){
+            strategyArchiveLoading=false;
+            strategyArchiveRefreshRequested=false;
+            strategyArchiveRetryAfter=Date.now()+5*60*1000;
+          }
         }
         const statusLabels={
           "history-session-started":"История: загрузка "+(details.targetCandles||DISPLAY_CANDLE_LIMIT)+" свечей · подготовка пакетов",
