@@ -104,6 +104,77 @@ function flatCandles(count) {
 console.log('PASS: chart-pattern detection, no-lookahead guard, loss-streak metrics, deterministic block bootstrap');
 
 {
+  require('../experimental-strategy.js');
+  const shock=globalThis.PocketShockExperiment;
+  assert.ok(shock,'Experimental shock model should attach to window');
+  assert.equal(typeof shock.buildShockContext,'function');
+  assert.equal(typeof shock.calibrateShockContext,'function');
+  assert.equal(typeof shock.evaluateShockConfluence,'function');
+
+  // Stable synthetic M1 series, then a short synchronized downward shock.
+  const rows=[];
+  let price=1.1000;
+  for(let i=0;i<8998;i++){
+    let ret=0.000018*Math.sin(i*0.17)+0.000012*Math.cos(i*0.071);
+    if(i>=8995&&i<=8997)ret-=0.000055;
+    const open=price;
+    const close=price*Math.exp(ret);
+    const wick=0.000004+Math.abs(ret)*0.12;
+    rows.push({time:i*60,open,high:Math.max(open,close)+wick,low:Math.min(open,close)-wick,close});
+    price=close;
+  }
+  const context=shock.buildShockContext(rows);
+  assert.ok(context.m1.length>8900);
+  assert.ok(context.m2.length>4400);
+  assert.ok(context.m5.length>1700);
+  assert.ok(context.m15.length>500);
+
+  const signalTime=8998*60;
+  const calibration=shock.calibrateShockContext(context,signalTime,{
+    windowDays:2,
+    recalibrationDays:7,
+    rvLowQuantile:0,
+    rvHighQuantile:1,
+    m5TrendQuantile:1,
+    m15TrendQuantile:1,
+    minFastSamples:100,
+    minTrendSamples:30
+  });
+  assert.equal(calibration.ok,true,'Two days of synthetic M1 data should be enough for a test calibration');
+  const testOptions={
+    thresholds:[
+      {z1:1,z2:1},
+      {z1:1.5,z2:1.5},
+      {z1:2,z2:2}
+    ]
+  };
+  const decision=shock.evaluateShockConfluence(context,signalTime,0,calibration,testOptions);
+  assert.equal(decision.direction,'UP','A synchronized downward M1/M2 shock should fade upward');
+  assert.equal(decision.thresholds.z1,1);
+
+  const futureRows=rows.concat([
+    {time:8998*60,open:price,high:price*1.0001,low:price*0.9999,close:price*1.00005},
+    {time:8999*60,open:price*1.00005,high:price*1.0002,low:price*1.0000,close:price*1.0001}
+  ]);
+  const futureContext=shock.buildShockContext(futureRows);
+  const sameDecision=shock.evaluateShockConfluence(futureContext,signalTime,0,calibration,testOptions);
+  assert.equal(sameDecision.direction,decision.direction,
+    'Appending future candles must not alter a decision at an earlier synchronized close');
+
+  const afterTwoLosses=shock.evaluateShockConfluence(context,signalTime,2,calibration,testOptions);
+  assert.equal(afterTwoLosses.thresholds.z1,2,
+    'After two losses the most restrictive threshold state must be selected');
+
+  const broken=rows.filter((row,i)=>i!==4500);
+  const brokenContext=shock.buildShockContext(broken);
+  assert.ok(brokenContext.m2.length<context.m2.length,
+    'A missing M1 candle must prevent aggregation of an incomplete M2 bar');
+}
+
+console.log('PASS: experimental M1/M2 shock model, quantile calibration, multi-timeframe guards and no-lookahead');
+
+
+{
   const synthetic=[];
   let previous=1.1000;
   for(let i=0;i<620;i++){
@@ -128,5 +199,15 @@ console.log('PASS: chart-pattern detection, no-lookahead guard, loss-streak metr
   const inline=[...html.matchAll(/<script\b(?!(?:[^>]*\bsrc\s*=))[^>]*>([\s\S]*?)<\/script>/gi)];
   assert.ok(inline.length>=1,'index.html should contain the inline app script');
   inline.forEach((match,i)=>new vm.Script(match[1],{filename:'index.html:inline-'+i}));
+
+  assert.ok(html.includes('const DISPLAY_CANDLE_LIMIT=2000'),'The visible chart must remain capped at 2,000 candles');
+  assert.ok(html.includes('count:DISPLAY_CANDLE_LIMIT'),'The chart history request must stay separate and limited to 2,000 candles');
+  assert.ok(html.includes('SHOCK_ARCHIVE_CANDLES=SHOCK_ARCHIVE_DAYS*24*60'),'The paper model must maintain its own 21-day M1 archive');
+  assert.ok(html.includes('count,\n        stamp:reference,\n        purpose:\'strategy\''),'The hidden strategy archive must use a separate M1 history request');
+  assert.ok(html.includes('buildShockContext(strategyArchive.slice(-1200))'),'Live decisions should use a bounded recent feature window');
+  assert.ok(html.includes('id="shockExperimentStreaks"'),'The paper panel must show counts of 2+, 3+, 4+ and 5+ loss streaks');
+  assert.ok(html.includes('remaining.toFixed(2)'),'The visible candle close countdown must retain hundredth-second precision');
+  assert.ok(!html.includes('placeOrder(')&&!html.includes('openTrade('),'The paper model must not place trades');
+
 }
 
