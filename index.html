@@ -88,8 +88,10 @@
             <div><b id="shockExperimentWinRate">—</b><span>Доля побед</span></div>
             <div><b id="shockExperimentMaxStreak">—</b><span>Макс. серия потерь</span></div>
           </div>
-          <p class="sub" id="shockExperimentEdge" style="margin:8px 0 0">EV при выплате 90%: — · текущая серия: 0</p>
+          <p class="sub" id="shockExperimentEdge" style="margin:8px 0 0">Победы / поражения · EV при выплате 90% · текущая серия: 0</p>
+          <p class="sub" id="shockExperimentStreaks" style="margin:5px 0 0">Серии проигрышей: 2+ — 0 · 3+ — 0 · 4+ — 0 · 5+ — 0</p>
           <p class="sub" id="shockExperimentCalibration" style="margin:5px 0 0">Калибровка: 21 день · обновление раз в 7 дней</p>
+          <p class="sub" style="margin:5px 0 0">Контрольный редкий кандидат: 44 сигнала за 90 дней (0,02 в час). Цель 10–20 сигналов в час пока не достигнута.</p>
           <div style="display:flex;justify-content:flex-end;margin-top:8px">
             <button type="button" id="exportShockExperiment" style="padding:6px 9px;border:1px solid #405675;border-radius:7px;background:#1a2a40;color:var(--text);cursor:pointer;font-size:11px">Экспорт результатов JSON</button>
           </div>
@@ -306,6 +308,8 @@
     let strategyArchiveSymbol=pair.value;
     let strategyArchiveLoaded=false;
     let strategyArchiveLoading=false;
+    let strategyArchiveCacheChecked=false;
+    let strategyArchiveRefreshRequested=false;
     let strategyLiveCandle=null;
     let strategyContext=null;
     let strategyCalibration=null;
@@ -409,16 +413,27 @@
       const losses=n-wins;
       const winRate=n?wins/n:null;
       let run=0,maxRun=0;
+      const streakCounts={2:0,3:0,4:0,5:0};
+      const countRun=length=>{
+        if(length>maxRun)maxRun=length;
+        for(const level of [2,3,4,5])if(length>=level)streakCounts[level]++;
+      };
       for(const row of rows){
-        if(row.outcome==='loss'){run++;maxRun=Math.max(maxRun,run);}else run=0;
+        if(row.outcome==='loss'){run++;}
+        else if(run){countRun(run);run=0;}
       }
+      if(run)countRun(run);
       const ev=n?(wins*.9-losses)/n:null;
       document.getElementById('shockExperimentSamples').textContent=String(n);
       document.getElementById('shockExperimentWinRate').textContent=winRate==null?'—':(winRate*100).toFixed(1)+'%';
       document.getElementById('shockExperimentMaxStreak').textContent=n?String(maxRun):'—';
       document.getElementById('shockExperimentEdge').textContent=
-        'EV при выплате 90%: '+(ev==null?'—':(ev>=0?'+':'')+(ev*100).toFixed(1)+'% на ставку')+
+        'Победы: '+wins+' · проигрыши: '+losses+
+        ' · EV при выплате 90%: '+(ev==null?'—':(ev>=0?'+':'')+(ev*100).toFixed(1)+'% на ставку')+
         ' · текущая серия: '+getShockLossStreak(symbol);
+      document.getElementById('shockExperimentStreaks').textContent=
+        'Серии проигрышей: 2+ — '+streakCounts[2]+' · 3+ — '+streakCounts[3]+
+        ' · 4+ — '+streakCounts[4]+' · 5+ — '+streakCounts[5];
       if(message)document.getElementById('shockExperimentReason').textContent=message;
       if(strategyCalibration&&strategyCalibration.ok){
         document.getElementById('shockExperimentCalibration').textContent=
@@ -435,6 +450,8 @@
       strategyArchiveSymbol=symbol;
       strategyArchiveLoaded=false;
       strategyArchiveLoading=false;
+      strategyArchiveCacheChecked=false;
+      strategyArchiveRefreshRequested=false;
       strategyLiveCandle=null;
       strategyContext=null;
       strategyCalibration=null;
@@ -447,48 +464,54 @@
       updateShockExperimentUi('Ждём 21-дневный архив M1 для калибровки');
       void readShockArchiveCache(symbol).then(record=>{
         if(strategyArchiveSymbol!==symbol)return;
+        strategyArchiveCacheChecked=true;
         if(record&&Array.isArray(record.candles)){
           strategyArchive=window.PocketShockExperiment.normalizeM1Candles(record.candles);
-          const reference=lastQuoteAt?lastQuoteAt/1000:Date.now()/1000;
           const last=strategyArchive[strategyArchive.length-1];
-          const age=last?reference-(last.time+60):Infinity;
           const span=last&&strategyArchive.length?(last.time-strategyArchive[0].time)/86400:0;
-          const fresh=strategyArchive.length>=20000&&span>=19&&age<=180&&age>=-3600;
-          if(fresh){
+          const complete=strategyArchive.length>=20000&&span>=19;
+          if(complete){
             strategyArchiveLoaded=true;
-            strategyContext=window.PocketShockExperiment.buildShockContext(strategyArchive);
-            strategyCalibration=loadShockCalibration(symbol);
+            const reference=lastQuoteAt?lastQuoteAt/1000:Date.now()/1000;
             const at=last.time+60;
+            strategyCalibration=loadShockCalibration(symbol);
             if(!strategyCalibration||strategyCalibration.expiresAt<=at||!strategyCalibration.ok){
-              strategyCalibration=window.PocketShockExperiment.calibrateShockContext(strategyContext,at);
+              const calibrationContext=window.PocketShockExperiment.buildShockContext(strategyArchive);
+              strategyCalibration=window.PocketShockExperiment.calibrateShockContext(calibrationContext,at);
               if(strategyCalibration.ok)saveShockCalibration(symbol,strategyCalibration);
             }
-            setShockArchiveStatus('Локальный архив M1: '+strategyArchive.length.toLocaleString('ru-RU')+' свечей · '+span.toFixed(1)+' дн. · обновляется live');
-            updateShockExperimentUi(strategyCalibration&&strategyCalibration.ok?'Эксперимент готов · ждём синхронный сигнал M1/M2':'Недостаточно данных для калибровки');
+            strategyContext=null;
+            setShockArchiveStatus('Локальный архив M1: '+strategyArchive.length.toLocaleString('ru-RU')+
+              ' свечей · '+span.toFixed(1)+' дн. · проверяем актуальность');
+            updateShockExperimentUi(strategyCalibration&&strategyCalibration.ok?
+              'Эксперимент готов · ждём синхронный сигнал M1/M2':'Недостаточно данных для калибровки');
           }else{
-            setShockArchiveStatus('Локальный архив найден, но устарел · обновляем 21-дневные данные');
+            setShockArchiveStatus('Локальный архив неполный · запрашиваем полный 21-дневный M1');
           }
+        }else{
+          setShockArchiveStatus('Локальный архив не найден · запрашиваем M1 за 21 день');
         }
         requestShockArchiveIfNeeded(lastQuoteAt/1000||Date.now()/1000);
       });
     }
     function maybeSaveStrategyCandle(candle){
       if(!candle||!Number.isFinite(candle.time))return;
-      const byTime=new Map(strategyArchive.map(row=>[row.time,row]));
-      const prior=byTime.get(candle.time);
-      if(prior){
-        byTime.set(candle.time,{
+      const lastIndex=strategyArchive.length-1;
+      const prior=lastIndex>=0?strategyArchive[lastIndex]:null;
+      if(prior&&prior.time===candle.time){
+        strategyArchive[lastIndex]={
           time:candle.time,
           open:prior.open,
           high:Math.max(prior.high,candle.high),
           low:Math.min(prior.low,candle.low),
           close:candle.close
+        };
+      }else if(!prior||candle.time>prior.time){
+        strategyArchive.push({
+          time:candle.time,open:candle.open,high:candle.high,low:candle.low,close:candle.close
         });
-      }else{
-        byTime.set(candle.time,{time:candle.time,open:candle.open,high:candle.high,low:candle.low,close:candle.close});
+        if(strategyArchive.length>SHOCK_ARCHIVE_CANDLES)strategyArchive.shift();
       }
-      const rows=[...byTime.values()].sort((a,b)=>a.time-b.time);
-      strategyArchive=rows.slice(-SHOCK_ARCHIVE_CANDLES);
       strategyContext=null;
       saveShockArchiveIfDue(false);
     }
@@ -530,8 +553,10 @@
       const currentBucket=Math.floor(now/60)*60;
       const merged=[...byTime.values()].filter(c=>c.time<currentBucket).sort((a,b)=>a.time-b.time);
       strategyArchive=merged.slice(-SHOCK_ARCHIVE_CANDLES);
-      strategyContext=window.PocketShockExperiment.buildShockContext(strategyArchive);
+      strategyContext=null;
       strategyArchiveLoading=false;
+      strategyArchiveRefreshRequested=false;
+      strategyArchiveCacheChecked=true;
       const first=strategyArchive[0]?.time||0;
       const last=strategyArchive[strategyArchive.length-1]?.time||0;
       const span=first&&last?(last-first)/86400:0;
@@ -541,7 +566,9 @@
         const signalTime=last+60;
         const stored=loadShockCalibration(strategyArchiveSymbol);
         strategyCalibration=stored&&stored.expiresAt>signalTime?stored:
-          window.PocketShockExperiment.calibrateShockContext(strategyContext,signalTime);
+          window.PocketShockExperiment.calibrateShockContext(
+            window.PocketShockExperiment.buildShockContext(strategyArchive),signalTime
+          );
         if(strategyCalibration&&strategyCalibration.ok)saveShockCalibration(strategyArchiveSymbol,strategyCalibration);
         setShockArchiveStatus('Скрытый архив M1 готов: '+strategyArchive.length.toLocaleString('ru-RU')+' свечей · '+span.toFixed(1)+' дн.'+(rejected?' · отклонено строк: '+rejected:''));
         updateShockExperimentUi(strategyCalibration&&strategyCalibration.ok?'Архив готов · собираем реальные тестовые сигналы':'Архив загружен, но калибровка пока невозможна');
@@ -552,7 +579,7 @@
       }
     }
     function requestShockArchiveIfNeeded(stamp){
-      if(strategyArchiveSymbol!==pair.value||strategyArchiveLoaded||strategyArchiveLoading)return;
+      if(strategyArchiveSymbol!==pair.value||!strategyArchiveCacheChecked||strategyArchiveLoading)return;
       const key=pair.value+':'+tf.value;
       if(chartHistoryLoadedKey!==key)return;
       const version=String(historyExperimentVersion||'');
@@ -563,16 +590,28 @@
         setShockArchiveStatus('Для скрытого архива нужен History Experiment 0.3.2 · график и live-котировки работают отдельно');
         return;
       }
+      const latest=strategyArchive[strategyArchive.length-1];
+      const reference=Number(stamp)||Date.now()/1000;
+      const archiveAge=latest?Math.max(0,reference-(latest.time+60)):Infinity;
+      const cachedSpan=latest&&strategyArchive.length?
+        (latest.time-strategyArchive[0].time)/86400:0;
+      const complete=strategyArchiveLoaded&&strategyArchive.length>=20000&&cachedSpan>=19;
+      if(complete&&archiveAge<=120)return;
+      const canRefreshTail=complete&&archiveAge<=(2000-100)*60;
+      const count=canRefreshTail?2000:SHOCK_ARCHIVE_CANDLES;
       strategyArchiveLoading=true;
-      shockArchiveRequestKey=pair.value+':M1:21d';
-      setShockArchiveStatus('Загружаем скрытый архив M1 · 21 день · 30 240 свечей');
+      strategyArchiveRefreshRequested=canRefreshTail;
+      shockArchiveRequestKey=pair.value+':M1:'+(canRefreshTail?'tail2000':'21d');
+      setShockArchiveStatus(canRefreshTail?
+        'Обновляем скрытый архив M1 · последние 2 000 свечей':
+        'Загружаем скрытый архив M1 · 21 день · 30 240 свечей');
       window.postMessage({
         source:'POCKET_ANALYZER_QUOTE_BRIDGE',
         kind:'history-request',
         symbol:pair.value,
         period:60,
-        count:SHOCK_ARCHIVE_CANDLES,
-        stamp,
+        count,
+        stamp:reference,
         purpose:'strategy'
       },'*');
     }
@@ -627,7 +666,6 @@
         updateShockExperimentUi('Вход пропущен: задержка первой котировки '+entryDelay.toFixed(2)+' с');
         return;
       }
-      strategyContext=window.PocketShockExperiment.buildShockContext(strategyArchive);
       const calibration=prepareShockCalibration(signalTime);
       if(!calibration||!calibration.ok){
         setShockArchiveStatus('История есть, но недостаточно данных для 21-дневной калибровки');
@@ -635,8 +673,9 @@
         return;
       }
       const lossStreak=getShockLossStreak(pair.value);
+      const liveContext=window.PocketShockExperiment.buildShockContext(strategyArchive.slice(-1200));
       const decision=window.PocketShockExperiment.evaluateShockConfluence(
-        strategyContext,signalTime,lossStreak,calibration
+        liveContext,signalTime,lossStreak,calibration
       );
       if(decision.direction==='NONE'){
         document.getElementById('shockExperimentDirection').textContent='НЕТ СИГНАЛА';
