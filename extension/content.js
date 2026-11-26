@@ -26,12 +26,24 @@
   if (isAnalyzer) {
     if (!runtimeAvailable()) return;
 
+    window.addEventListener("message", event => {
+      if (event.source !== window || event.data?.source !== APP_MARKER ||
+          event.data.kind !== "history-bridge-ping") return;
+      window.postMessage({
+        source: APP_MARKER,
+        kind: "history-bridge-ready",
+        version: chrome.runtime.getManifest().version
+      }, "*");
+    });
+
     chrome.runtime.onMessage.addListener(message => {
       if (message?.type === "POCKET_ANALYZER_HISTORY") {
         const selectedSymbol = document.getElementById("pair")?.value;
         const selectedPeriod = Number(document.getElementById("timeframe")?.value);
+        const purpose = message.purpose === "strategy" ? "strategy" : "chart";
         if (message.symbol && selectedSymbol && message.symbol !== selectedSymbol) return;
-        if (message.period && Number.isFinite(selectedPeriod) &&
+        if (purpose === "strategy" && Number(message.period) !== 60) return;
+        if (purpose === "chart" && message.period && Number.isFinite(selectedPeriod) &&
             selectedPeriod > 0 && Number(message.period) !== selectedPeriod) return;
         const rows = Array.isArray(message.history) ? message.history :
           (message.history?.data || message.history?.candles || message.history?.history || []);
@@ -42,7 +54,8 @@
           kind: "history",
           history: message.history,
           symbol: message.symbol,
-          period: message.period
+          period: message.period,
+          purpose
         }, "*");
       }
       if (message?.type === "POCKET_ANALYZER_HISTORY_STATUS") {
@@ -57,7 +70,7 @@
           "history-socket-closed": "История: WebSocket закрыт · код " + (d.code ?? "?") + " · " + (d.reason || "без причины"),
           "history-stream-detected": "История: поток найден · " + (d.event || "событие") + " · " + (d.endpoint || "сервер"),
           "history-waiting-for-stream": "История: ждём поток · " + (d.reason || "нет соединения") + (d.endpoint ? " · " + d.endpoint : ""),
-          "history-session-started": "История: загружаем до 90 дней · готовим пакеты",
+          "history-session-started": "История: загружаем " + (d.targetCandles || "?") + " свечей · готовим пакеты",
           "history-request-sent": "История: пакет отправлен · ждём ответ",
           "history-request-retry": "История: повторный запрос · ждём ответ",
           "history-page-received": "История: пакет " + (d.page ?? "?") + "/" + (d.expectedPages ?? "?") + " · получено " + (d.totalRows ?? d.rows ?? "?") + " свечей",
@@ -89,7 +102,8 @@
           symbol: event.data.symbol,
           period: event.data.period,
           count: event.data.count,
-          stamp: event.data.stamp
+          stamp: event.data.stamp,
+          purpose: event.data.purpose === "strategy" ? "strategy" : "chart"
         }
       }).then(result => {
         if (!statusEl) return;
@@ -111,7 +125,8 @@
         type: "POCKET_ANALYZER_HISTORY",
         history: event.data.history,
         symbol: event.data.symbol,
-        period: event.data.period
+        period: event.data.period,
+        purpose: event.data.purpose === "strategy" ? "strategy" : "chart"
       });
     }
 
@@ -135,7 +150,8 @@
           reason: event.data.reason,
           targetCandles: event.data.targetCandles,
           pageCandles: event.data.pageCandles,
-          maxPages: event.data.maxPages
+          maxPages: event.data.maxPages,
+          purpose: event.data.purpose
         }
       });
     }
