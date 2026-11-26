@@ -1,0 +1,20 @@
+name: History Extension Tests
+
+on:
+  pull_request:
+    branches: [browser-history-experiment]
+  push:
+    branches: [browser-history-experiment]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check extension purpose routing
+        run: node tests/history-extension.test.js
