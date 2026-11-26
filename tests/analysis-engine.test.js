@@ -211,3 +211,31 @@ console.log('PASS: experimental M1/M2 shock model, quantile calibration, multi-t
 
 }
 
+
+
+{
+  const micro=require('../microstructure-capture.js');
+  const state=micro.createAggregator('EURUSD_otc');
+  let result=micro.ingestQuote(state,'EURUSD_otc',100.10,1.10000);
+  assert.equal(result.accepted,true);
+  assert.equal(result.completed,null);
+  result=micro.ingestQuote(state,'EURUSD_otc',100.45,1.10020);
+  assert.equal(result.accepted,true);
+  assert.equal(state.current.quotes,2);
+  assert.equal(state.current.upMoves,1);
+  assert.equal(state.current.high,1.10020);
+  result=micro.ingestQuote(state,'EURUSD_otc',101.10,1.09990);
+  assert.equal(result.accepted,true);
+  assert.equal(result.completed.second,100);
+  assert.equal(result.completed.quotes,2);
+  assert.equal(result.completed.upMoves,1);
+  assert.equal(state.current.second,101);
+  assert.equal(state.current.downMoves,1);
+  result=micro.ingestQuote(state,'EURUSD_otc',100.99,1.10010);
+  assert.equal(result.accepted,false,'Out-of-order quote updates must be ignored');
+  assert.equal(state.current.second,101);
+  result=micro.ingestQuote(state,'EURUSD_otc',103.10,1.10030);
+  assert.equal(result.completed.second,101);
+  assert.equal(result.completed.quotes,1);
+  assert.equal(state.current.second,103,'Missing seconds must not be filled with fabricated bars');
+}
