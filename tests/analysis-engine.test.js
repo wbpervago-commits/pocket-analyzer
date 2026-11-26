@@ -199,5 +199,15 @@ console.log('PASS: experimental M1/M2 shock model, quantile calibration, multi-t
   const inline=[...html.matchAll(/<script\b(?!(?:[^>]*\bsrc\s*=))[^>]*>([\s\S]*?)<\/script>/gi)];
   assert.ok(inline.length>=1,'index.html should contain the inline app script');
   inline.forEach((match,i)=>new vm.Script(match[1],{filename:'index.html:inline-'+i}));
+
+  assert.ok(html.includes('const DISPLAY_CANDLE_LIMIT=2000'),'The visible chart must remain capped at 2,000 candles');
+  assert.ok(html.includes('count:DISPLAY_CANDLE_LIMIT'),'The chart history request must stay separate and limited to 2,000 candles');
+  assert.ok(html.includes('SHOCK_ARCHIVE_CANDLES=SHOCK_ARCHIVE_DAYS*24*60'),'The paper model must maintain its own 21-day M1 archive');
+  assert.ok(html.includes('count,\n        stamp:reference,\n        purpose:\'strategy\''),'The hidden strategy archive must use a separate M1 history request');
+  assert.ok(html.includes('buildShockContext(strategyArchive.slice(-1200))'),'Live decisions should use a bounded recent feature window');
+  assert.ok(html.includes('id="shockExperimentStreaks"'),'The paper panel must show counts of 2+, 3+, 4+ and 5+ loss streaks');
+  assert.ok(html.includes('remaining.toFixed(2)'),'The visible candle close countdown must retain hundredth-second precision');
+  assert.ok(!html.includes('placeOrder(')&&!html.includes('openTrade('),'The paper model must not place trades');
+
 }
 
