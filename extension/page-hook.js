@@ -14,7 +14,15 @@
   let requestSequence = 0;
 
   function post(status, details = {}) {
-    window.postMessage({ source: marker, kind: "bridge-status", status, ...details }, "*");
+    const purpose = details.purpose || activeHistorySession?.purpose ||
+      inFlight?.item?.session?.purpose || pendingRequest?.session?.purpose;
+    window.postMessage({
+      source: marker,
+      kind: "bridge-status",
+      status,
+      ...details,
+      ...(purpose ? { purpose } : {})
+    }, "*");
   }
 
   function isOpen(socket) {
@@ -271,6 +279,7 @@
       history: { data: rows },
       symbol: session.symbol,
       period: session.period,
+      purpose: session.purpose,
       complete: true,
       pages: session.pages,
       spanSeconds
@@ -485,6 +494,7 @@
       id: ++historySessionSequence,
       symbol: request.symbol,
       period: Math.floor(period),
+      purpose: request.purpose === "strategy" ? "strategy" : "chart",
       anchorTime,
       targetStart: anchorTime - Math.ceil(targetCandles) * Math.floor(period),
       cursorTime: anchorTime,

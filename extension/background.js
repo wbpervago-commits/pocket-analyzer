@@ -240,7 +240,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
 
       if (!candidates.length) {
-        reportStatus("pocket-tab-not-found");
+        reportStatus("pocket-tab-not-found", { purpose: message.request.purpose || "chart" });
         return;
       }
 
@@ -249,7 +249,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         type: "POCKET_ANALYZER_HISTORY_REQUEST_TO_PAGE",
         request: message.request
       }).catch(() => {
-        reportStatus("pocket-tab-bridge-unavailable");
+        reportStatus("pocket-tab-bridge-unavailable", { purpose: message.request.purpose || "chart" });
       });
     });
     return;
@@ -265,7 +265,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       type: "POCKET_ANALYZER_HISTORY",
       history: message.history,
       symbol: message.symbol,
-      period: message.period
+      period: message.period,
+      purpose: message.purpose === "strategy" ? "strategy" : "chart"
     });
   }
 });
